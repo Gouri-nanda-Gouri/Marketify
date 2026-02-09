@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:user_app/changepassword.dart';
 import 'package:user_app/editprofile.dart';
+import 'package:user_app/my_favo.dart';
 import 'main.dart';
 
 class MyProfile extends StatefulWidget {
@@ -163,19 +164,29 @@ class _MyProfileState extends State<MyProfile> {
                     ).then((_) => fetchProfile()),
                   ),
                   const SizedBox(height: 14),
-                  _actionButton(
-                    icon: Icons.lock_outline,
-                    text: "Change Password",
-                    color: Colors.orange,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChangePassword(
-                          userId: supabase.auth.currentUser!.id,
-                        ),
-                      ),
-                    ),
-                  ),
+_actionButton(
+  icon: Icons.lock_outline,
+  text: "Change Password",
+  color: Colors.orange,
+  onTap: () => Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => ChangePassword(
+        userId: supabase.auth.currentUser!.id,
+      ),
+    ),
+  ),
+),
+const SizedBox(height: 14),
+_actionButton(
+  icon: Icons.favorite,
+  text: "My Favourites",
+  color: Colors.pinkAccent,
+  onTap: () => Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const MyFavourites()),
+  ),
+),
                 ],
               ),
             ),

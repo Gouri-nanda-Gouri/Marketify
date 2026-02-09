@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:user_app/addproduct.dart';
 import 'package:user_app/homescreen.dart';
+import 'package:user_app/myads.dart';
 import 'package:user_app/myprofile.dart';
 
 class MainBottomNav extends StatefulWidget {
@@ -15,7 +16,7 @@ class _MainBottomNavState extends State<MainBottomNav> {
 
   final pages = const [
     HomeScreen(),
-    Center(child: Text("Search")),
+    Myads(),
     Addproduct(),
     Center(child: Text("Chats")),
     MyProfile(),
