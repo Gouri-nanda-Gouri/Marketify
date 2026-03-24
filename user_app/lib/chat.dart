@@ -2,10 +2,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:user_app/main.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ChatPage extends StatefulWidget {
   final String peerId;
-  const ChatPage({super.key, required this.peerId, required productImage, required String price, required productName, required productId});
+
+  const ChatPage({
+    super.key,
+    required this.peerId,
+    required productImage,
+    required String price,
+    required productName,
+    required productId,
+  });
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -16,7 +25,7 @@ class _ChatPageState extends State<ChatPage> {
   final ScrollController _scrollController = ScrollController();
 
   List<Map<String, dynamic>> _messages = [];
-  StreamSubscription? _subscription;
+  RealtimeChannel? _channel;
 
   String? _peerName;
 
@@ -24,6 +33,7 @@ class _ChatPageState extends State<ChatPage> {
   void initState() {
     super.initState();
     _fetchPeerName();
+    _loadMessages();
     _setupRealtimeSubscription();
     _markMessagesAsRead();
   }
@@ -45,6 +55,22 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  /// Load previous chat history once
+  Future<void> _loadMessages() async {
+    final userId = supabase.auth.currentUser!.id;
+
+    final data = await supabase
+        .from('tbl_chat')
+        .select()
+        .or(
+            'and(sender_id.eq.$userId,receiver_id.eq.${widget.peerId}),and(sender_id.eq.${widget.peerId},receiver_id.eq.$userId)')
+        .order('created_at', ascending: true);
+
+    setState(() => _messages = List<Map<String, dynamic>>.from(data));
+
+    _scrollToBottom();
+  }
+
   /// Mark messages as read
   Future<void> _markMessagesAsRead() async {
     final userId = supabase.auth.currentUser!.id;
@@ -57,34 +83,48 @@ class _ChatPageState extends State<ChatPage> {
         .eq('chat_read', false);
   }
 
-  /// Realtime listener
+  /// Realtime listener ONLY for new messages
   void _setupRealtimeSubscription() {
     final userId = supabase.auth.currentUser!.id;
 
-_subscription = supabase
-    .from('tbl_chat')
-    .stream(primaryKey: ['id'])
-    .order('created_at', ascending: true)
-    .listen((data) {
-  final filtered = data.where((msg) =>
-      (msg['sender_id'] == userId &&
-          msg['receiver_id'] == widget.peerId) ||
-      (msg['sender_id'] == widget.peerId &&
-          msg['receiver_id'] == userId)).toList();
+    _channel = supabase.channel('chat_channel');
 
-      setState(() => _messages = filtered);
+    _channel!
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'tbl_chat',
+          callback: (payload) {
+            final msg = payload.newRecord;
 
-      /// auto scroll
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (_scrollController.hasClients) {
-          _scrollController.jumpTo(
-            _scrollController.position.maxScrollExtent,
-          );
-        }
-      });
+            final isThisChat =
+                (msg['sender_id'] == userId &&
+                        msg['receiver_id'] == widget.peerId) ||
+                    (msg['sender_id'] == widget.peerId &&
+                        msg['receiver_id'] == userId);
+
+            if (isThisChat) {
+              setState(() => _messages.add(msg));
+              _scrollToBottom();
+              _markMessagesAsRead();
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  /// Smooth scroll
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
-  
 
   /// Send message
   Future<void> _sendMessage() async {
@@ -101,8 +141,14 @@ _subscription = supabase
       'created_at': DateTime.now().toIso8601String(),
     };
 
-    await supabase.from('tbl_chat').insert(message);
+    /// show instantly
+    setState(() => _messages.add(message));
+    _scrollToBottom();
+
     _messageController.clear();
+
+    /// insert into DB
+    await supabase.from('tbl_chat').insert(message);
   }
 
   String _formatTime(String createdAt) {
@@ -112,7 +158,7 @@ _subscription = supabase
 
   @override
   void dispose() {
-    _subscription?.cancel();
+    _channel?.unsubscribe();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -147,15 +193,17 @@ _subscription = supabase
                     margin:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     padding: const EdgeInsets.all(10),
-                    constraints:
-                        BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                    constraints: BoxConstraints(
+                        maxWidth:
+                            MediaQuery.of(context).size.width * 0.75),
                     decoration: BoxDecoration(
                       color: isMe ? Colors.green : Colors.white,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
-                      crossAxisAlignment:
-                          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                      crossAxisAlignment: isMe
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
                       children: [
                         Text(
                           msg['chat_message'] ?? '',
@@ -165,12 +213,30 @@ _subscription = supabase
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          _formatTime(msg['created_at']),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: isMe ? Colors.white70 : Colors.black54,
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _formatTime(msg['created_at']),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isMe
+                                    ? Colors.white70
+                                    : Colors.black54,
+                              ),
+                            ),
+                            if (isMe) const SizedBox(width: 4),
+                            if (isMe)
+                              Icon(
+                                msg['chat_read'] == true
+                                    ? Icons.done_all
+                                    : Icons.done,
+                                size: 14,
+                                color: msg['chat_read'] == true
+                                    ? Colors.blue
+                                    : Colors.white70,
+                              )
+                          ],
                         ),
                       ],
                     ),
@@ -182,7 +248,8 @@ _subscription = supabase
 
           /// MESSAGE INPUT
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             color: Colors.white,
             child: Row(
               children: [
@@ -204,7 +271,8 @@ _subscription = supabase
                 CircleAvatar(
                   backgroundColor: Colors.green,
                   child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
+                    icon:
+                        const Icon(Icons.send, color: Colors.white),
                     onPressed: _sendMessage,
                   ),
                 )

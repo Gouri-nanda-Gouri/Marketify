@@ -10,7 +10,6 @@ class Condition extends StatefulWidget {
 
 class _ConditionState extends State<Condition> {
   final _formKey = GlobalKey<FormState>();
-
   TextEditingController conditionController = TextEditingController();
 
   List conditionData = [];
@@ -48,15 +47,11 @@ class _ConditionState extends State<Condition> {
 
   /// DELETE
   Future<void> deleteCondition(int id) async {
-    await supabase
-        .from('tbl_condition')
-        .delete()
-        .eq('id', id);
-
+    await supabase.from('tbl_condition').delete().eq('id', id);
     fetchData();
   }
 
-  /// EDIT DIALOG
+  /// EDIT DIALOG (UPGRADED UI)
   void showEditDialog(int id, String oldName) {
     TextEditingController editController =
         TextEditingController(text: oldName);
@@ -64,32 +59,60 @@ class _ConditionState extends State<Condition> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("Edit Condition"),
-          content: TextField(
-            controller: editController,
-            decoration: const InputDecoration(
-              labelText: "Condition Name",
+        return Dialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Edit Condition",
+                  style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: editController,
+                  decoration: InputDecoration(
+                    labelText: "Condition Name",
+                    filled: true,
+                    fillColor: const Color(0xFFF5F7FF),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Cancel")),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2E6CF6),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () {
+                        final updatedName = editController.text.trim();
+                        if (updatedName.isNotEmpty) {
+                          updateCondition(id, updatedName);
+                        }
+                        Navigator.pop(context);
+                      },
+                      child: const Text("Update"),
+                    ),
+                  ],
+                )
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final updatedName = editController.text.trim();
-
-                if (updatedName.isNotEmpty) {
-                  updateCondition(id, updatedName);
-                }
-
-                Navigator.pop(context);
-              },
-              child: const Text("Update"),
-            ),
-          ],
         );
       },
     );
@@ -105,45 +128,56 @@ class _ConditionState extends State<Condition> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
-      appBar: AppBar(
-        title: const Text("Add Condition"),
-        backgroundColor: const Color(0xFF2E6CF6),
-        elevation: 0,
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _formKey,
-            child: Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// HEADER
+            const Text(
+              "Condition Management",
+              style: TextStyle(
+                  fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              "Manage product conditions like New, Used, etc.",
+              style: TextStyle(color: Colors.black54),
+            ),
+
+            const SizedBox(height: 24),
+
+            /// ADD CONDITION CARD
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
+              child: Form(
+                key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "Condition Details",
+                      "+ Add New Condition",
                       style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                      ),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      "Enter a new condition name",
-                      style: TextStyle(color: Colors.black54),
-                    ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
-                    /// TEXTFIELD
                     TextFormField(
                       controller: conditionController,
                       decoration: InputDecoration(
-                        labelText: 'Condition Name',
+                        hintText: "Enter condition name...",
                         prefixIcon: const Icon(Icons.rule),
                         filled: true,
                         fillColor: const Color(0xFFF9FAFF),
@@ -153,119 +187,139 @@ class _ConditionState extends State<Condition> {
                         ),
                       ),
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
+                        if (value == null ||
+                            value.trim().isEmpty) {
                           return 'Condition name is required';
                         }
                         return null;
                       },
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
-                    /// BUTTON
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2E6CF6),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor:
+                              const Color(0xFF2E6CF6),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius:
+                                BorderRadius.circular(14),
                           ),
                         ),
                         onPressed: () async {
-                          if (_formKey.currentState!.validate()) {
+                          if (_formKey.currentState!
+                              .validate()) {
                             await insert();
                           }
                         },
                         child: const Text(
                           'Add Condition',
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                              fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 30),
-
-                    const Divider(),
-
-                    const SizedBox(height: 10),
-
-                    const Text(
-                      "Added Conditions",
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    /// LIST VIEW
-                    conditionData.isEmpty
-                        ? const Padding(
-                            padding: EdgeInsets.all(20),
-                            child: Center(
-                              child: Text("No Conditions Added"),
-                            ),
-                          )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            physics:
-                                const NeverScrollableScrollPhysics(),
-                            itemCount: conditionData.length,
-                            itemBuilder: (context, index) {
-                              final data = conditionData[index];
-
-                              return Card(
-                                margin:
-                                    const EdgeInsets.symmetric(vertical: 6),
-                                child: ListTile(
-                                  title:
-                                      Text(data['condition_name']),
-                                  leading: const Icon(
-                                    Icons.rule,
-                                    color: Color(0xFF2E6CF6),
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      /// EDIT
-                                      IconButton(
-                                        icon: const Icon(Icons.edit,
-                                            color: Colors.blue),
-                                        onPressed: () {
-                                          showEditDialog(
-                                            data['id'], // <-- change if PK name differs
-                                            data['condition_name'],
-                                          );
-                                        },
-                                      ),
-
-                                      /// DELETE
-                                      IconButton(
-                                        icon: const Icon(Icons.delete,
-                                            color: Colors.red),
-                                        onPressed: () {
-                                          deleteCondition(
-                                            data['id'], // <-- change if PK name differs
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
                   ],
                 ),
               ),
             ),
-          ),
+
+            const SizedBox(height: 24),
+
+            /// LIST HEADER
+            const Text(
+              "Conditions List",
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 12),
+
+            /// LIST
+            Expanded(
+              child: conditionData.isEmpty
+                  ? const Center(
+                      child: Text(
+                        "📭 No conditions yet\nAdd one above",
+                        textAlign: TextAlign.center,
+                        style:
+                            TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: conditionData.length,
+                      itemBuilder: (context, index) {
+                        final data = conditionData[index];
+
+                        return Container(
+                          margin: const EdgeInsets.only(
+                              bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius:
+                                BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black
+                                    .withOpacity(0.03),
+                                blurRadius: 8,
+                                offset:
+                                    const Offset(0, 3),
+                              )
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.rule,
+                                  color:
+                                      Color(0xFF2E6CF6)),
+
+                              const SizedBox(width: 12),
+
+                              Expanded(
+                                child: Text(
+                                  data['condition_name'],
+                                  style: const TextStyle(
+                                      fontWeight:
+                                          FontWeight.w600),
+                                ),
+                              ),
+
+                              /// EDIT
+                              IconButton(
+                                icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.blue),
+                                onPressed: () {
+                                  showEditDialog(
+                                      data['id'],
+                                      data[
+                                          'condition_name']);
+                                },
+                              ),
+
+                              /// DELETE
+                              IconButton(
+                                icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red),
+                                onPressed: () {
+                                  deleteCondition(
+                                      data['id']);
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            )
+          ],
         ),
       ),
     );

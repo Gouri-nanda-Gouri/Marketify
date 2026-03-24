@@ -7,9 +7,11 @@ environment:
   sdk: ^3.8.1
 
 dependencies:
+  fl_chart: ^1.2.0
   flutter:
     sdk: flutter
   flutter_admin_scaffold: ^1.4.0
+  intl: ^0.20.2
   sidebarx: ^0.17.2
   supabase_flutter: ^2.12.0
 

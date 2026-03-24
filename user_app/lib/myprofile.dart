@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:user_app/changepassword.dart';
 import 'package:user_app/editprofile.dart';
+import 'package:user_app/main.dart';
 import 'package:user_app/my_favo.dart';
-import 'main.dart';
+import 'package:user_app/theme.dart';
+import 'package:user_app/widgets/custom_button.dart';
+import 'package:user_app/widgets/custom_card.dart';
+import 'package:user_app/complaint.dart';
+import 'package:user_app/feedback.dart';
 
 class MyProfile extends StatefulWidget {
   const MyProfile({super.key});
@@ -46,237 +51,197 @@ class _MyProfileState extends State<MyProfile> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryBlue = Color(0xFF2E6CF6);
-
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: AppTheme.background,
+        body: Center(child: CircularProgressIndicator(color: AppTheme.primary)),
       );
     }
 
     if (userData == null) {
-      return const Scaffold(
-        body: Center(child: Text("Profile not found")),
+      return Scaffold(
+        backgroundColor: AppTheme.background,
+        body: const Center(child: Text("Profile not found")),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
+      backgroundColor: AppTheme.background,
       body: SingleChildScrollView(
         child: Column(
           children: [
             // ===== Header =====
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 50, 16, 30),
+              padding: const EdgeInsets.fromLTRB(AppTheme.padding, 60, AppTheme.padding, 30),
               decoration: const BoxDecoration(
-                color: primaryBlue,
+                color: AppTheme.primary,
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(28),
-                  bottomRight: Radius.circular(28),
+                  bottomLeft: Radius.circular(AppTheme.borderRadiusLarge),
+                  bottomRight: Radius.circular(AppTheme.borderRadiusLarge),
                 ),
               ),
               child: Column(
                 children: [
                   CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.white,
+                    radius: 54,
+                    backgroundColor: AppTheme.background,
                     child: CircleAvatar(
-                      radius: 46,
-                      backgroundImage:
-                          NetworkImage(userData!['user_photo']),
+                      radius: 50,
+                      backgroundImage: NetworkImage(userData!['user_photo'] ?? ''),
+                      onBackgroundImageError: (_, __) {},
+                      child: userData!['user_photo'] == null ? const Icon(Icons.person, size: 40) : null,
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
                   Text(
-                    userData!['user_name'],
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                    ),
+                    userData!['user_name'] ?? 'User',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    userData!['user_email'],
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
-                      fontWeight: FontWeight.w600,
+                    userData!['user_email'] ?? '',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white.withOpacity(0.8),
                     ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             // ===== Details Card =====
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 18,
-                      color: Color(0x11000000),
-                      offset: Offset(0, 10),
-                    ),
-                  ],
-                ),
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.padding),
+              child: CustomCard(
                 child: Column(
                   children: [
                     _infoTile(
-                      Icons.phone,
+                      Icons.phone_outlined,
                       "Phone",
-                      userData!['user_contact'],
+                      userData!['user_contact'] ?? 'Not provided',
                     ),
-                    const Divider(height: 28),
+                    const Divider(height: 32, color: AppTheme.divider),
                     _infoTile(
-                      Icons.location_on,
+                      Icons.location_on_outlined,
                       "Address",
-                      userData!['user_address'],
+                      userData!['user_address'] ?? 'Not provided',
                     ),
                   ],
                 ),
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 32),
 
-            // ===== Action Buttons =====
+             // ===== Action Buttons =====
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.padding),
               child: Column(
                 children: [
-                  _actionButton(
-                    icon: Icons.edit,
+                  CustomButton(
+                    icon: const Icon(Icons.edit_outlined, size: 20),
                     text: "Edit Profile",
-                    color: primaryBlue,
-                    onTap: () => Navigator.push(
+                    onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            EditProfile(userData: userData!),
+                        builder: (_) => EditProfile(userData: userData!),
                       ),
                     ).then((_) => fetchProfile()),
                   ),
-                  const SizedBox(height: 14),
-_actionButton(
-  icon: Icons.lock_outline,
-  text: "Change Password",
-  color: Colors.orange,
-  onTap: () => Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => ChangePassword(
-        userId: supabase.auth.currentUser!.id,
-      ),
-    ),
-  ),
-),
-const SizedBox(height: 14),
-_actionButton(
-  icon: Icons.favorite,
-  text: "My Favourites",
-  color: Colors.pinkAccent,
-  onTap: () => Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => const MyFavourites()),
-  ),
-),
+                  const SizedBox(height: 16),
+                  CustomButton(
+                    icon: const Icon(Icons.lock_outline, size: 20),
+                    text: "Change Password",
+                    isSecondary: true,
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChangePassword(
+                          userId: Supabase.instance.client.auth.currentUser!.id,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  CustomButton(
+                    icon: const Icon(Icons.favorite_border, size: 20),
+                    text: "My Favourites",
+                    isSecondary: true,
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MyFavourites()),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  CustomButton(
+                    icon: const Icon(Icons.support_agent_outlined, size: 20),
+                    text: "My Complaints",
+                    isSecondary: true,
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ComplaintListScreen()),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  CustomButton(
+                    icon: const Icon(Icons.rate_review_outlined, size: 20),
+                    text: "My Feedback",
+                    isSecondary: true,
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const FeedbackListScreen()),
+                    ),
+                  ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 48),
           ],
         ),
       ),
     );
   }
-}
 
-// ===== Helper Widgets =====
-
-Widget _infoTile(IconData icon, String label, String value) {
-  return Row(
-    children: [
-      Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF2F5FF),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, color: const Color(0xFF2E6CF6)),
-      ),
-      const SizedBox(width: 14),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.black54,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
-}
-
-Widget _actionButton({
-  required IconData icon,
-  required String text,
-  required Color color,
-  required VoidCallback onTap,
-}) {
-  return InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(16),
-    child: Container(
-      height: 54,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 16,
-            color: color.withOpacity(0.35),
-            offset: const Offset(0, 8),
+  Widget _infoTile(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppTheme.background,
+            borderRadius: BorderRadius.circular(12),
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: Colors.white),
-          const SizedBox(width: 10),
-          Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-            ),
+          child: Icon(icon, color: AppTheme.primary, size: 24),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+      ],
+    );
+  }
 }

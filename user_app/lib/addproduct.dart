@@ -2,8 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:user_app/homescreen.dart';
-import 'package:user_app/main.dart';
 import 'package:file_picker/file_picker.dart' as file_picker;
+import 'package:user_app/theme.dart';
+import 'package:user_app/widgets/custom_app_bar.dart';
+import 'package:user_app/widgets/custom_button.dart';
+import 'package:user_app/widgets/custom_text_field.dart';
 
 class Addproduct extends StatefulWidget {
   const Addproduct({super.key});
@@ -18,7 +21,6 @@ class _AddproductState extends State<Addproduct> {
   final TextEditingController productNameController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
-  final TextEditingController imageController = TextEditingController();
 
   int? selectedCategory;
   int? selectedCondition;
@@ -29,6 +31,8 @@ class _AddproductState extends State<Addproduct> {
   List<Map<String, dynamic>> conditions = [];
   List<Map<String, dynamic>> districts = [];
   List<Map<String, dynamic>> places = [];
+
+  final supabase = Supabase.instance.client;
 
   @override
   void initState() {
@@ -43,184 +47,232 @@ class _AddproductState extends State<Addproduct> {
     productNameController.dispose();
     descriptionController.dispose();
     priceController.dispose();
-    imageController.dispose();
     super.dispose();
   }
 
   Uint8List? imageBytes;
   file_picker.PlatformFile? pickedImage;
 
-  /// IMAGE PICKER (FIXED)
+  bool _isLoading = false;
+
   Future<void> handleImagePick() async {
     file_picker.FilePickerResult? result = await file_picker.FilePicker.platform.pickFiles(
       type: file_picker.FileType.image,
-      withData: true, // IMPORTANT
+      withData: true,
     );
 
     if (result == null) return;
 
     pickedImage = result.files.first;
     imageBytes = pickedImage!.bytes;
-
-    debugPrint("✅ Image picked: ${imageBytes!.length} bytes");
     setState(() {});
   }
 
-  // ================= FETCH DATA =================
-
   Future<void> fetchCategories() async {
-    final response = await supabase.from('tbl_category').select();
-    setState(() => categories = List<Map<String, dynamic>>.from(response));
+    try {
+      final response = await supabase.from('tbl_category').select();
+      setState(() => categories = List<Map<String, dynamic>>.from(response));
+    } catch (e) {
+      debugPrint("Error: $e");
+    }
   }
 
   Future<void> fetchConditions() async {
-    final response = await supabase.from('tbl_condition').select();
-    setState(() => conditions = List<Map<String, dynamic>>.from(response));
+    try {
+      final response = await supabase.from('tbl_condition').select();
+      setState(() => conditions = List<Map<String, dynamic>>.from(response));
+    } catch (e) {
+      debugPrint("Error: $e");
+    }
   }
 
   Future<void> fetchDistricts() async {
-    final response = await supabase.from('tbl_district').select();
-    setState(() => districts = List<Map<String, dynamic>>.from(response));
+    try {
+      final response = await supabase.from('tbl_district').select();
+      setState(() => districts = List<Map<String, dynamic>>.from(response));
+    } catch (e) {
+      debugPrint("Error: $e");
+    }
   }
 
-  // Fetch places based on district
   Future<void> fetchPlaces(int districtId) async {
-    final response = await supabase
-        .from('tbl_place')
-        .select()
-        .eq('district_id', districtId);
-
-    setState(() => places = List<Map<String, dynamic>>.from(response));
+    try {
+      final response = await supabase
+          .from('tbl_place')
+          .select()
+          .eq('district_id', districtId);
+      setState(() => places = List<Map<String, dynamic>>.from(response));
+    } catch (e) {
+      debugPrint("Error: $e");
+    }
   }
-  
 
-  // ================= INSERT PRODUCT =================
+  Future<String?> photoUpload(String uid) async {
+    try {
+      if (imageBytes == null) return null;
 
- // 1. Add a loading variable at the top of your _AddproductState
-bool _isLoading = false;
+      const bucketName = 'Products';
+      final String uniqueName = DateTime.now().millisecondsSinceEpoch.toString();
+      final filePath = "product/${uid}_$uniqueName.${pickedImage!.extension}";
 
-// 2. Updated Photo Upload (Unique filenames)
-Future<String?> photoUpload(String uid) async {
-  try {
-    if (imageBytes == null) return null;
+      await supabase.storage.from(bucketName).uploadBinary(
+            filePath,
+            imageBytes!,
+            fileOptions: const FileOptions(
+              upsert: true,
+            ),
+          );
 
-    const bucketName = 'Products';
-    // Use timestamp to ensure every product image is unique
-    final String uniqueName = DateTime.now().millisecondsSinceEpoch.toString();
-    final filePath = "product/${uid}_$uniqueName.${pickedImage!.extension}";
+      return supabase.storage.from(bucketName).getPublicUrl(filePath);
+    } catch (e) {
+      debugPrint("Upload error: $e");
+      return null;
+    }
+  }
 
-    await supabase.storage.from(bucketName).uploadBinary(
-          filePath,
-          imageBytes!,
-          fileOptions: const FileOptions(
-            upsert: true,
-            contentType: 'image/jpeg', // Consider using pickedImage!.mimeType if available
-          ),
+  Future<void> addProduct() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    if (imageBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please upload a product photo"), backgroundColor: AppTheme.error),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      String? imageUrl = await photoUpload(user.id);
+
+      await supabase.from('tbl_product').insert({
+        "product_name": productNameController.text,
+        "product_description": descriptionController.text,
+        "product_price": double.tryParse(priceController.text) ?? 0,
+        "category_id": selectedCategory,
+        "condition_id": selectedCondition,
+        "district_id": selectedDistrict,
+        "place_id": selectedPlace,
+        "image_url": imageUrl,
+        "user_id": user.id,
+        "created_at": DateTime.now().toIso8601String(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Ad posted successfully"), backgroundColor: AppTheme.success),
         );
-
-    return supabase.storage.from(bucketName).getPublicUrl(filePath);
-  } catch (e) {
-    debugPrint("❌ Upload error: $e");
-    return null;
-  }
-}
-
-// 3. Updated Add Product (With Loading UI)
-Future<void> addProduct() async {
-  final user = supabase.auth.currentUser;
-  if (user == null) return;
-
-  setState(() => _isLoading = true); // Start loading
-
-  try {
-    String? imageUrl = await photoUpload(user.id);
-
-    await supabase.from('tbl_product').insert({
-      "product_name": productNameController.text,
-      "product_description": descriptionController.text,
-      "product_price": double.tryParse(priceController.text) ?? 0, // Store as number
-      "category_id": selectedCategory,
-      "condition_id": selectedCondition,
-      "district_id": selectedDistrict,
-      "place_id": selectedPlace,
-      "image_url": imageUrl,
-      "user_id": user.id,
-      "created_at": DateTime.now().toIso8601String(),
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Ad posted successfully ✅")),
-      );
-    Navigator.push(context, MaterialPageRoute(builder: (context) => HomeScreen(),));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomeScreen()));
+      }
+    } catch (e) {
+      debugPrint("Error adding product: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: AppTheme.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-  } catch (e) {
-    print("Error adding product: $e");
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
-    }
-  } finally {
-    if (mounted) setState(() => _isLoading = false); // Stop loading
   }
-}
-
-  // ================= UI =================
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFF002F34); // OLX dark teal
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Post your Ad"),
-        backgroundColor: primaryColor,
-      ),
+      backgroundColor: AppTheme.background,
+      appBar: const CustomAppBar(title: "Post your Ad"),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppTheme.padding),
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // IMAGE BOX
+              GestureDetector(
+                onTap: handleImagePick,
+                child: Container(
+                  height: 200,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: AppTheme.card,
+                    borderRadius: BorderRadius.circular(AppTheme.borderRadius),
+                    border: Border.all(color: AppTheme.divider),
+                  ),
+                  child: imageBytes == null
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withOpacity(0.05),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.add_a_photo_outlined, size: 40, color: AppTheme.primary),
+                            ),
+                            const SizedBox(height: 16),
+                            Text("Upload Product Photo", style: Theme.of(context).textTheme.bodyLarge),
+                          ],
+                        )
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.memory(imageBytes!, fit: BoxFit.cover),
+                              Positioned(
+                                right: 8,
+                                top: 8,
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black54,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.edit, color: Colors.white, size: 20),
+                                    onPressed: handleImagePick,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                ),
+              ),
 
-              // IMAGE BOX (OLX STYLE)
-             GestureDetector(
-  onTap: handleImagePick,
-  child: Container(
-    height: 180,
-    width: double.infinity,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.grey.shade300),
-    ),
-    child: imageBytes == null
-        ? Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.camera_alt_outlined, size: 40),
-              SizedBox(height: 10),
-              Text("Upload Product Photo")
-            ],
-          )
-        : ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.memory(imageBytes!, fit: BoxFit.cover),
-          ),
-  ),
-),
+              const SizedBox(height: 24),
 
+              Text("Product Details", style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
 
-              const SizedBox(height: 15),
+              CustomTextField(
+                controller: productNameController,
+                label: "Product Name",
+                validator: (v) => v == null || v.isEmpty ? "Required" : null,
+              ),
+              const SizedBox(height: 16),
+              
+              CustomTextField(
+                controller: descriptionController,
+                label: "Description",
+                maxLines: 3,
+                validator: (v) => v == null || v.isEmpty ? "Required" : null,
+              ),
+              const SizedBox(height: 16),
+              
+              CustomTextField(
+                controller: priceController,
+                label: "Price (₹)",
+                keyboardType: TextInputType.number,
+                validator: (v) => v == null || v.isEmpty ? "Required" : null,
+              ),
 
-              _field(productNameController, "Product Name"),
-              _field(descriptionController, "Description", maxLines: 3),
-              _field(priceController, "Price", keyboard: TextInputType.number),
-              _field(imageController, "Image URL"),
+              const SizedBox(height: 24),
+              Text("Categorization", style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
 
-              const SizedBox(height: 15),
-
-              // CATEGORY
               _dropdown(
                 label: "Category",
                 value: selectedCategory,
@@ -228,10 +280,8 @@ Future<void> addProduct() async {
                 textKey: "category_name",
                 onChanged: (val) => setState(() => selectedCategory = val),
               ),
+              const SizedBox(height: 16),
 
-              const SizedBox(height: 12),
-
-              // CONDITION
               _dropdown(
                 label: "Condition",
                 value: selectedCondition,
@@ -240,9 +290,10 @@ Future<void> addProduct() async {
                 onChanged: (val) => setState(() => selectedCondition = val),
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 24),
+              Text("Location", style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
 
-              // DISTRICT
               _dropdown(
                 label: "District",
                 value: selectedDistrict,
@@ -253,13 +304,11 @@ Future<void> addProduct() async {
                     selectedDistrict = val;
                     selectedPlace = null;
                   });
-                  fetchPlaces(val!);
+                  if (val != null) fetchPlaces(val);
                 },
               ),
+              const SizedBox(height: 16),
 
-              const SizedBox(height: 12),
-
-              // PLACE
               _dropdown(
                 label: "Place",
                 value: selectedPlace,
@@ -268,53 +317,24 @@ Future<void> addProduct() async {
                 onChanged: (val) => setState(() => selectedPlace = val),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 32),
 
-              // BUTTON
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor),
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      addProduct();
-                    }
-                  },
-                  child: const Text(
-                    "POST AD",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
+              CustomButton(
+                text: "POST AD",
+                isLoading: _isLoading,
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    addProduct();
+                  }
+                },
               ),
+              const SizedBox(height: 32),
             ],
           ),
         ),
       ),
     );
   }
-
-  // ================= COMMON FIELD =================
-
-  Widget _field(TextEditingController controller, String label,
-      {int maxLines = 1, TextInputType keyboard = TextInputType.text}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: controller,
-        maxLines: maxLines,
-        keyboardType: keyboard,
-        validator: (v) => v == null || v.isEmpty ? "Required" : null,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      ),
-    );
-  }
-
-  // ================= COMMON DROPDOWN =================
 
   Widget _dropdown({
     required String label,
@@ -326,17 +346,37 @@ Future<void> addProduct() async {
     return DropdownButtonFormField<int>(
       value: value,
       validator: (v) => v == null ? "Required" : null,
+      dropdownColor: AppTheme.card,
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        filled: true,
+        fillColor: AppTheme.card,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
+          borderSide: const BorderSide(color: AppTheme.divider, width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
+          borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
+          borderSide: const BorderSide(color: AppTheme.error, width: 1),
+        ),
       ),
       items: list
           .map((item) => DropdownMenuItem<int>(
                 value: item['id'],
-                child: Text(item[textKey]),
+                child: Text(item[textKey], style: Theme.of(context).textTheme.bodyLarge),
               ))
           .toList(),
       onChanged: onChanged,
     );
   }
 }
+

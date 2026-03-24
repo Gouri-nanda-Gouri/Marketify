@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:user_app/product_details.dart'; // Ensure this path is correct
+import 'package:user_app/product_details.dart';
+import 'package:user_app/theme.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -50,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final response = await supabase
         .from('tbl_product')
         .select('*, tbl_place(place_name)')
+        .neq('product_status', 0) // Explicitly ignore blocked listings
         .order('created_at', ascending: false);
 
     products = List<Map<String, dynamic>>.from(response);
@@ -127,26 +129,27 @@ Future<void> toggleLike(int productId) async {
 
   @override
   Widget build(BuildContext context) {
-    const primaryBlue = Color(0xFF2E6CF6);
-
     if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        backgroundColor: AppTheme.background,
+        body: Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+      );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
+      backgroundColor: AppTheme.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
             /// HERO SECTION
             SliverToBoxAdapter(
               child: Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppTheme.padding),
                 decoration: const BoxDecoration(
-                  color: primaryBlue,
+                  color: AppTheme.primary,
                   borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(26),
-                    bottomRight: Radius.circular(26),
+                    bottomLeft: Radius.circular(AppTheme.borderRadiusLarge),
+                    bottomRight: Radius.circular(AppTheme.borderRadiusLarge),
                   ),
                 ),
                 child: Column(
@@ -182,15 +185,15 @@ Future<void> toggleLike(int productId) async {
             /// BANNER
             SliverToBoxAdapter(
               child: Container(
-                margin: const EdgeInsets.all(16),
+                margin: const EdgeInsets.all(AppTheme.padding),
                 height: 120,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  color: Colors.orange.shade200,
+                  borderRadius: BorderRadius.circular(AppTheme.borderRadius),
+                  color: AppTheme.accent.withOpacity(0.8),
                 ),
                 child: const Center(
                   child: Text("Post Ads & Sell Faster 🚀",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ),
             ),
@@ -200,7 +203,7 @@ Future<void> toggleLike(int productId) async {
               child: SizedBox(
                 height: 100,
                 child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.padding),
                   scrollDirection: Axis.horizontal,
                   itemCount: categories.length,
                   itemBuilder: (context, i) {
@@ -209,8 +212,15 @@ Future<void> toggleLike(int productId) async {
                       width: 90,
                       margin: const EdgeInsets.only(right: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        color: AppTheme.card,
+                        borderRadius: BorderRadius.circular(AppTheme.borderRadius),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
                       ),
                       child: Center(
                         child: Text(
@@ -228,22 +238,22 @@ Future<void> toggleLike(int productId) async {
             /// SECTION TITLE
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.all(16),
+                padding: EdgeInsets.all(AppTheme.padding),
                 child: Text("Fresh Recommendations",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
               ),
             ),
 
             /// PRODUCT GRID
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.padding, vertical: 8),
               sliver: SliverGrid.builder(
                 itemCount: products.length,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.75,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 0.72,
                 ),
                 itemBuilder: (context, i) {
                   final product = products[i];
@@ -258,13 +268,32 @@ Future<void> toggleLike(int productId) async {
                     isLiked: likedProductIds.contains(productId),
                     onLikeTap: () => toggleLike(productId),
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ProductDetailsPage(product: product),
-                        ),
-                      );
-                    },
+  final currentUser = supabase.auth.currentUser;
+
+  if (currentUser == null) return;
+
+  final productOwnerId = product['user_id'];
+
+  /// BLOCK: user trying to buy their own product
+  if (productOwnerId == currentUser.id) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("You cannot buy your own product"),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  /// ALLOW navigation if not owner
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => ProductDetailsPage(product: product),
+    ),
+  );
+},
+
                   );
                 },
               ),
@@ -302,13 +331,13 @@ class ProductCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          color: AppTheme.card,
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacity(0.04),
               blurRadius: 10,
-              offset: const Offset(0, 5),
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -319,7 +348,7 @@ class ProductCard extends StatelessWidget {
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(AppTheme.borderRadius)),
                     child: imageUrl.isNotEmpty
                         ? Image.network(
                             imageUrl,

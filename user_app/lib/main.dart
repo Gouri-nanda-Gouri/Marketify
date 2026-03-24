@@ -5,6 +5,7 @@ import 'package:user_app/homescreen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:user_app/login.dart';
 import 'package:user_app/signin.dart';
+import 'package:user_app/theme.dart'; // Implemented new theme
 
 Future<void> main() async {
   await Supabase.initialize(
@@ -22,8 +23,8 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-     
-      home:  Login(),
+      theme: AppTheme.theme, // Applied custom theme
+      home: Login(),
     );
   }
 }

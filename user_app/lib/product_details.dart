@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:user_app/chat.dart';
+import 'package:user_app/theme.dart';
+import 'package:user_app/widgets/custom_button.dart';
+import 'package:user_app/widgets/custom_card.dart';
+import 'package:user_app/widgets/custom_app_bar.dart';
+import 'package:user_app/widgets/custom_text_field.dart';
 
 class ProductDetailsPage extends StatelessWidget {
   final Map<String, dynamic> product;
@@ -11,213 +16,251 @@ class ProductDetailsPage extends StatelessWidget {
     final sellerId = product['user_id'];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
-      appBar: AppBar(
-        title: const Text("Product Details"),
-        actions: const [
+      backgroundColor: AppTheme.background,
+      appBar: const CustomAppBar(
+        title: "Product Details",
+        actions: [
           Icon(Icons.favorite_border),
-          SizedBox(width: 12),
-          Icon(Icons.share),
-          SizedBox(width: 12),
+          SizedBox(width: 16),
+          Icon(Icons.share_outlined),
+          SizedBox(width: 16),
         ],
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             /// IMAGE SECTION
             Container(
-              height: 280,
+              height: 320,
               width: double.infinity,
-              color: Colors.black,
-              child: Image.network(
-                product['image_url'] ?? '',
-                fit: BoxFit.cover,
+              decoration: BoxDecoration(
+                color: AppTheme.card,
+                image: DecorationImage(
+                  image: NetworkImage(product['image_url'] ?? ''),
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
+            
+            const SizedBox(height: AppTheme.spacing),
 
-            /// PRICE + TITLE
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.white,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.padding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "₹ ${product['product_price']}",
-                    style: const TextStyle(
-                        fontSize: 26, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    product['product_name'] ?? '',
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on_outlined, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        product['tbl_place']?['place_name'] ?? 'Location',
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      const Spacer(),
-                      const Text("Today",
-                          style: TextStyle(color: Colors.grey)),
-                    ],
-                  )
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            /// MAKE OFFER + CHAT + CALL BUTTONS
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.white,
-              child: Column(
-                children: [
-
-                  /// MAKE OFFER
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () {
-                        showModalBottomSheet(
-                          context: context,
-                          builder: (_) => _OfferBottomSheet(
-                            productId: product['product_id'],
-                          ),
-                        );
-                      },
-                      child: const Text("Make an Offer"),
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  /// CHAT WITH SELLER
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.chat),
-                      label: const Text("Chat with seller"),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatPage(
-                              peerId: sellerId,
-                              productId: product['product_id'],
-                              productName: product['product_name'],
-                              productImage: product['image_url'],
-                              price: product['product_price'].toString(),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  /// CALL SELLER
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.call),
-                      label: const Text("Call seller"),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green),
-                      onPressed: () {
-                        // add call logic
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            /// SELLER CARD
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.white,
-              child: Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 26,
-                    child: Icon(Icons.person),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
+                  /// PRICE + TITLE
+                  CustomCard(
+                    padding: const EdgeInsets.all(AppTheme.padding),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Seller Name",
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16)),
-                        SizedBox(height: 4),
-                        Text("Member since 2024",
-                            style: TextStyle(color: Colors.grey)),
+                        Text(
+                          "₹ ${product['product_price']}",
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          product['product_name'] ?? '',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined, size: 18, color: AppTheme.textSecondary),
+                            const SizedBox(width: 6),
+                            Text(
+                              product['tbl_place']?['place_name'] ?? 'Location',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
+                            ),
+                            const Spacer(),
+                            Text("Today", style: Theme.of(context).textTheme.bodySmall),
+                          ],
+                        )
                       ],
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {},
-                    child: const Text("View profile"),
-                  )
-                ],
-              ),
-            ),
 
-            const SizedBox(height: 10),
+                  const SizedBox(height: AppTheme.padding),
 
-            /// DESCRIPTION
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.white,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Description",
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  Text(product['product_description'] ?? ''),
-                ],
-              ),
-            ),
+                  /// SELLER CARD
+                  CustomCard(
+                    padding: const EdgeInsets.all(AppTheme.padding),
+                    child: Row(
+                      children: [
+                        const CircleAvatar(
+                          radius: 24,
+                          backgroundColor: AppTheme.background,
+                          child: Icon(Icons.person, color: AppTheme.primary),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Seller Name",
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Member since 2024",
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios, size: 16, color: AppTheme.textSecondary),
+                      ],
+                    ),
+                  ),
 
-            const SizedBox(height: 10),
+                  const SizedBox(height: AppTheme.padding),
 
-            /// SAFETY TIPS
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.white,
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Safety Tips",
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 10),
-                  Text("• Meet seller in safe public place"),
-                  Text("• Check item before payment"),
-                  Text("• Avoid advance payments"),
+                  /// DESCRIPTION
+                  CustomCard(
+                    padding: const EdgeInsets.all(AppTheme.padding),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Description",
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          product['product_description'] ?? 'No description provided.',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: AppTheme.padding),
+
+                  /// SAFETY TIPS
+                  CustomCard(
+                    padding: const EdgeInsets.all(AppTheme.padding),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.security, color: AppTheme.success, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Safety Tips",
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _buildSafetyTip("Meet seller in a safe public place"),
+                        const SizedBox(height: 8),
+                        _buildSafetyTip("Check the item before payment"),
+                        const SizedBox(height: 8),
+                        _buildSafetyTip("Avoid advance payments"),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
           ],
         ),
       ),
+      
+      /// STICKY BOTTOM ACTIONS
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(AppTheme.padding),
+        decoration: BoxDecoration(
+          color: AppTheme.card,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CustomButton(
+                text: "Chat with seller",
+                icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatPage(
+                        peerId: sellerId,
+                        productId: product['product_id'],
+                        productName: product['product_name'],
+                        productImage: product['image_url'],
+                        price: product['product_price'].toString(),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomButton(
+                      text: "Make Offer",
+                      isSecondary: true,
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.borderRadiusLarge)),
+                          ),
+                          builder: (_) => _OfferBottomSheet(
+                            productId: product['product_id'],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CustomButton(
+                      text: "Call",
+                      isSecondary: true,
+                      icon: const Icon(Icons.phone_outlined, size: 20),
+                      onPressed: () {},
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSafetyTip(String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("• ", style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -232,29 +275,33 @@ class _OfferBottomSheet extends StatelessWidget {
     final TextEditingController offerController = TextEditingController();
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: AppTheme.padding,
+        right: AppTheme.padding,
+        top: 24,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Make an Offer",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          TextField(
+          const Text("Make an Offer", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 24),
+          CustomTextField(
+            label: "Your Offer Price",
+            hint: "e.g. 500",
             controller: offerController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              hintText: "Enter your offer price",
-              border: OutlineInputBorder(),
-            ),
+            prefixIcon: const Icon(Icons.currency_rupee, size: 18),
           ),
-          const SizedBox(height: 12),
-          ElevatedButton(
+          const SizedBox(height: 24),
+          CustomButton(
+            text: "Submit Offer",
             onPressed: () {
-              // store offer in DB
               Navigator.pop(context);
             },
-            child: const Text("Submit Offer"),
-          )
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );

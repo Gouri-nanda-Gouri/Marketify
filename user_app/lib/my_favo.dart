@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:user_app/product_details.dart';
+import 'package:user_app/theme.dart';
+import 'package:user_app/widgets/custom_app_bar.dart';
+import 'package:user_app/widgets/custom_card.dart';
 
 class MyFavourites extends StatefulWidget {
   const MyFavourites({super.key});
@@ -20,42 +23,36 @@ class _MyFavouritesState extends State<MyFavourites> {
     fetchFavourites();
   }
 
- Future<void> fetchFavourites() async {
-  try {
-    final user = supabase.auth.currentUser;
-    if (user == null) {
-      setState(() => isLoading = false);
-      return;
-    }
-
-    // 1. Fetch the data
-    // Note: Ensure 'product_id' is the correct column name in tbl_favourite
-    final response = await supabase
-        .from('tbl_favourite')
-        .select('*, tbl_product(*, tbl_place(place_name))')
-        .eq('user_id', user.id);
-
-    debugPrint("Raw Favourite Response: $response");
-
-    // 2. Safely parse the nested data
-    final List<Map<String, dynamic>> fetchedProducts = [];
-    
-    for (var item in (response as List)) {
-      if (item['tbl_product'] != null) {
-        // We take the product data and add it to our list
-        fetchedProducts.add(item['tbl_product'] as Map<String, dynamic>);
+  Future<void> fetchFavourites() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) {
+        setState(() => isLoading = false);
+        return;
       }
-    }
 
-    setState(() {
-      favouriteProducts = fetchedProducts;
-      isLoading = false;
-    });
-  } catch (e) {
-    debugPrint("Error fetching favourites: $e");
-    setState(() => isLoading = false);
+      final response = await supabase
+          .from('tbl_favourite')
+          .select('*, tbl_product(*, tbl_place(place_name))')
+          .eq('user_id', user.id);
+
+      final List<Map<String, dynamic>> fetchedProducts = [];
+      
+      for (var item in (response as List)) {
+        if (item['tbl_product'] != null) {
+          fetchedProducts.add(item['tbl_product'] as Map<String, dynamic>);
+        }
+      }
+
+      setState(() {
+        favouriteProducts = fetchedProducts;
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Error fetching favourites: $e");
+      setState(() => isLoading = false);
+    }
   }
-}
 
   Future<void> removeFromFavourites(int productId) async {
     try {
@@ -65,14 +62,15 @@ class _MyFavouritesState extends State<MyFavourites> {
           .delete()
           .match({'user_id': user!.id, 'product_id': productId});
 
-      // Refresh the list locally
       setState(() {
         favouriteProducts.removeWhere((p) => p['product_id'] == productId);
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Removed from favorites')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Removed from favorites'), backgroundColor: AppTheme.primary),
+        );
+      }
     } catch (e) {
       debugPrint("Error removing favorite: $e");
     }
@@ -81,32 +79,26 @@ class _MyFavouritesState extends State<MyFavourites> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
-      appBar: AppBar(
-        title: const Text("My Favourites", 
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
+      backgroundColor: AppTheme.background,
+      appBar: const CustomAppBar(title: "My Favourites"),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
           : favouriteProducts.isEmpty
               ? _buildEmptyState()
               : GridView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.padding, vertical: 16),
                   itemCount: favouriteProducts.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.75,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.72,
                   ),
                   itemBuilder: (context, i) {
                     final product = favouriteProducts[i];
                     return _FavouriteCard(
                       product: product,
-                      onRemove: () => removeFromFavourites(product['product_id']),
+                      onRemove: () => removeFromFavourites(product['product_id'] ?? product['id']),
                     );
                   },
                 ),
@@ -118,10 +110,12 @@ class _MyFavouritesState extends State<MyFavourites> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.favorite_border, size: 80, color: Colors.grey.shade300),
+          Icon(Icons.favorite_border, size: 64, color: AppTheme.textSecondary.withOpacity(0.5)),
           const SizedBox(height: 16),
-          const Text("No favorites yet",
-              style: TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold)),
+          Text(
+            "No favorites yet",
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
         ],
       ),
     );
@@ -141,47 +135,76 @@ class _FavouriteCard extends StatelessWidget {
         context,
         MaterialPageRoute(builder: (_) => ProductDetailsPage(product: product)),
       ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-        ),
+      child: CustomCard(
+        padding: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: Stack(
+                fit: StackFit.expand,
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-                    child: Image.network(
-                      product['image_url'] ?? '',
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                    ),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(AppTheme.borderRadius)),
+                    child: product['image_url'] != null && String.fromEnvironment('image_url', defaultValue: product['image_url']).isNotEmpty
+                        ? Image.network(
+                            product['image_url'],
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stack) =>
+                                Container(color: AppTheme.divider, child: const Icon(Icons.image_not_supported, color: AppTheme.textSecondary)),
+                          )
+                        : Container(color: AppTheme.divider, child: const Icon(Icons.image, color: AppTheme.textSecondary)),
                   ),
                   Positioned(
-                    right: 4,
-                    top: 4,
-                    child: IconButton(
-                      icon: const Icon(Icons.favorite, color: Colors.red),
-                      onPressed: onRemove,
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: AppTheme.background,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.favorite, color: AppTheme.error, size: 20),
+                        padding: const EdgeInsets.all(8),
+                        constraints: const BoxConstraints(),
+                        onPressed: onRemove,
+                      ),
                     ),
                   )
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("₹${product['product_price']}",
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text(product['product_name'] ?? '',
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text(product['tbl_place']?['place_name'] ?? 'Unknown',
-                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  Text(
+                    "₹${product['product_price']}",
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppTheme.primary),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    product['product_name'] ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 12, color: AppTheme.textSecondary),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          product['tbl_place']?['place_name'] ?? 'Unknown',
+                          style: Theme.of(context).textTheme.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             )
@@ -190,4 +213,4 @@ class _FavouriteCard extends StatelessWidget {
       ),
     );
   }
-}
+}

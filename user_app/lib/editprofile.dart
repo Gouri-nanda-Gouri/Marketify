@@ -2,6 +2,11 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:user_app/theme.dart';
+import 'package:user_app/widgets/custom_app_bar.dart';
+import 'package:user_app/widgets/custom_button.dart';
+import 'package:user_app/widgets/custom_card.dart';
+import 'package:user_app/widgets/custom_text_field.dart';
 import 'main.dart';
 
 class EditProfile extends StatefulWidget {
@@ -78,33 +83,27 @@ class _EditProfileState extends State<EditProfile> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryBlue = Color(0xFF2E6CF6);
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
-      appBar: AppBar(
-        title: const Text("Edit Profile"),
-        backgroundColor: primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+      backgroundColor: AppTheme.background,
+      appBar: const CustomAppBar(title: "Edit Profile"),
       body: SingleChildScrollView(
         child: Column(
           children: [
             // ===== Profile Image =====
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 26),
+              padding: const EdgeInsets.symmetric(vertical: 32),
               child: Stack(
                 children: [
                   CircleAvatar(
-                    radius: 52,
-                    backgroundColor: Colors.white,
+                    radius: 56,
+                    backgroundColor: AppTheme.card,
                     child: CircleAvatar(
-                      radius: 48,
+                      radius: 52,
                       backgroundImage: imageBytes != null
                           ? MemoryImage(imageBytes!)
-                          : NetworkImage(widget.userData['user_photo'])
+                          : NetworkImage(widget.userData['user_photo'] ?? '')
                               as ImageProvider,
+                      onBackgroundImageError: (_, __) {},
                     ),
                   ),
                   Positioned(
@@ -114,14 +113,15 @@ class _EditProfileState extends State<EditProfile> {
                       onTap: pickImage,
                       borderRadius: BorderRadius.circular(50),
                       child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: primaryBlue,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary,
                           shape: BoxShape.circle,
+                          border: Border.all(color: AppTheme.background, width: 3),
                         ),
                         child: const Icon(
                           Icons.camera_alt,
-                          size: 18,
+                          size: 20,
                           color: Colors.white,
                         ),
                       ),
@@ -133,114 +133,51 @@ class _EditProfileState extends State<EditProfile> {
 
             // ===== Form Card =====
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 18,
-                      color: Color(0x11000000),
-                      offset: Offset(0, 10),
-                    )
-                  ],
-                ),
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.padding),
+              child: CustomCard(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _inputField(
+                    CustomTextField(
                       controller: nameController,
                       label: "Name",
-                      icon: Icons.person_outline,
+                      prefixIcon: const Icon(Icons.person_outline, size: 20),
                     ),
-                    const SizedBox(height: 14),
-                    _inputField(
+                    const SizedBox(height: AppTheme.spacing),
+                    CustomTextField(
                       controller: contactController,
                       label: "Contact",
-                      icon: Icons.phone_outlined,
                       keyboardType: TextInputType.phone,
+                      prefixIcon: const Icon(Icons.phone_outlined, size: 20),
                     ),
-                    const SizedBox(height: 14),
-                    _inputField(
+                    const SizedBox(height: AppTheme.spacing),
+                    CustomTextField(
                       controller: addressController,
                       label: "Address",
-                      icon: Icons.location_on_outlined,
                       maxLines: 2,
+                      prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
                     ),
                   ],
                 ),
               ),
             ),
 
-            const SizedBox(height: 26),
+            const SizedBox(height: 32),
 
             // ===== Save Button =====
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: InkWell(
-                onTap: isSaving ? null : updateProfile,
-                borderRadius: BorderRadius.circular(18),
-                child: Container(
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: primaryBlue,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        blurRadius: 18,
-                        color: primaryBlue.withOpacity(0.35),
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: isSaving
-                        ? const CircularProgressIndicator(
-                            color: Colors.white,
-                          )
-                        : const Text(
-                            "Save Changes",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                  ),
-                ),
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.padding),
+              child: CustomButton(
+                text: "Save Changes",
+                isLoading: isSaving,
+                onPressed: updateProfile,
               ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 48),
           ],
         ),
       ),
     );
   }
-}
-
-// ===== Reusable Input =====
-Widget _inputField({
-  required TextEditingController controller,
-  required String label,
-  required IconData icon,
-  TextInputType keyboardType = TextInputType.text,
-  int maxLines = 1,
-}) {
-  return TextField(
-    controller: controller,
-    keyboardType: keyboardType,
-    maxLines: maxLines,
-    decoration: InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon),
-      filled: true,
-      fillColor: const Color(0xFFF4F6FB),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
-      ),
-    ),
-  );
 }

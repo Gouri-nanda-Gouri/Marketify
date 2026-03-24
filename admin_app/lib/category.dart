@@ -67,64 +67,113 @@ class _CategoriesState extends State<Categories> {
     );
   }
 
-  /// EDIT DIALOG
+  /// EDIT DIALOG (UPGRADED)
   void showEditDialog(int id, String oldName) {
     TextEditingController editController =
         TextEditingController(text: oldName);
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Edit Category"),
-        content: TextField(
-          controller: editController,
-          decoration: const InputDecoration(
-            labelText: "Category Name",
+      builder: (_) => Dialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Edit Category",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: editController,
+                decoration: InputDecoration(
+                  labelText: "Category Name",
+                  filled: true,
+                  fillColor: const Color(0xFFF5F7FF),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Cancel")),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E6CF6),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () {
+                      final updatedName = editController.text.trim();
+                      if (updatedName.isNotEmpty) {
+                        updateCategory(id, updatedName);
+                      }
+                      Navigator.pop(context);
+                    },
+                    child: const Text("Update"),
+                  ),
+                ],
+              )
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            child: const Text("Cancel"),
-            onPressed: () => Navigator.pop(context),
-          ),
-          ElevatedButton(
-            child: const Text("Update"),
-            onPressed: () {
-              final updatedName = editController.text.trim();
-
-              if (updatedName.isNotEmpty) {
-                updateCategory(id, updatedName);
-              }
-
-              Navigator.pop(context);
-            },
-          ),
-        ],
       ),
     );
   }
 
-  /// DELETE CONFIRMATION
+  /// DELETE CONFIRMATION (UPGRADED)
   void confirmDelete(int id) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Delete Category"),
-        content:
-            const Text("Are you sure you want to delete this category?"),
-        actions: [
-          TextButton(
-            child: const Text("Cancel"),
-            onPressed: () => Navigator.pop(context),
+      builder: (_) => Dialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Delete Category",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              const Text("Are you sure you want to delete this category?"),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Cancel")),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () {
+                      deleteCategory(id);
+                      Navigator.pop(context);
+                    },
+                    child: const Text("Delete"),
+                  ),
+                ],
+              )
+            ],
           ),
-          ElevatedButton(
-            child: const Text("Delete"),
-            onPressed: () {
-              deleteCategory(id);
-              Navigator.pop(context);
-            },
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -145,179 +194,175 @@ class _CategoriesState extends State<Categories> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FB),
-      appBar: AppBar(
-        title: const Text("Add Category"),
-        backgroundColor: const Color(0xFF2E6CF6),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 500),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: const [
-                BoxShadow(
-                  blurRadius: 18,
-                  color: Color(0x11000000),
-                  offset: Offset(0, 10),
-                ),
-              ],
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// HEADER
+            const Text(
+              "Category Management",
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-            child: Column(
-              children: [
+            const SizedBox(height: 4),
+            const Text(
+              "Manage product categories efficiently",
+              style: TextStyle(color: Colors.black54),
+            ),
 
-                /// ICON
-                const Icon(
-                  Icons.category_outlined,
-                  size: 48,
-                  color: Color(0xFF2E6CF6),
-                ),
+            const SizedBox(height: 24),
 
-                const SizedBox(height: 10),
+            /// ADD CATEGORY CARD
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        "+ Add New Category",
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
-                const Text(
-                  "Create New Category",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                    TextFormField(
+                      controller: categoryController,
+                      validator: (value) =>
+                          value!.isEmpty ? "Enter category name" : null,
+                      decoration: InputDecoration(
+                        hintText: "Enter category name...",
+                        prefixIcon: const Icon(Icons.category),
+                        filled: true,
+                        fillColor: const Color(0xFFF9FAFF),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
 
-                const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
-                /// FORM
-                Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: categoryController,
-                        validator: (value) =>
-                            value!.isEmpty ? "Enter category name" : null,
-                        decoration: InputDecoration(
-                          labelText: "Category Name",
-                          prefixIcon:
-                              const Icon(Icons.edit_outlined),
-                          border: OutlineInputBorder(
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (_formKey.currentState!.validate()) {
+                            insertCategory();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2E6CF6),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              insertCategory();
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                const Color(0xFF2E6CF6),
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: const Text(
-                            "Add Category",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
+                        child: const Text(
+                          "Add Category",
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-                const Divider(),
-                const SizedBox(height: 10),
-
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "All Categories",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
                     ),
-                  ),
+                  ],
                 ),
-
-                const SizedBox(height: 10),
-
-                /// LIST
-                categoryData.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Text("No Categories Added"),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        physics:
-                            const NeverScrollableScrollPhysics(),
-                        itemCount: categoryData.length,
-                        itemBuilder: (context, index) {
-                          final data = categoryData[index];
-
-                          return Card(
-                            child: ListTile(
-                              leading: const Icon(
-                                Icons.folder,
-                                color: Color(0xFF2E6CF6),
-                              ),
-                              title:
-                                  Text(data['category_name']),
-                              trailing: Row(
-                                mainAxisSize:
-                                    MainAxisSize.min,
-                                children: [
-
-                                  /// EDIT
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit,
-                                      color: Colors.blue,
-                                    ),
-                                    onPressed: () {
-                                      showEditDialog(
-                                        data['category_id'],
-                                        data['category_name'],
-                                      );
-                                    },
-                                  ),
-
-                                  /// DELETE
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      color: Colors.red,
-                                    ),
-                                    onPressed: () {
-                                      confirmDelete(
-                                          data['category_id']);
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ],
+              ),
             ),
-          ),
+
+            const SizedBox(height: 24),
+
+            /// LIST HEADER
+            const Text(
+              "Categories List",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 12),
+
+            /// LIST
+            Expanded(
+              child: categoryData.isEmpty
+                  ? const Center(
+                      child: Text(
+                        "📭 No categories yet\nAdd one above",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: categoryData.length,
+                      itemBuilder: (context, index) {
+                        final data = categoryData[index];
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.03),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              )
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.folder,
+                                  color: Color(0xFF2E6CF6)),
+                              const SizedBox(width: 12),
+
+                              Expanded(
+                                child: Text(
+                                  data['category_name'],
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
+
+                              IconButton(
+                                icon: const Icon(Icons.edit,
+                                    color: Colors.blue),
+                                onPressed: () {
+                                  showEditDialog(
+                                    data['category_id'],
+                                    data['category_name'],
+                                  );
+                                },
+                              ),
+
+                              IconButton(
+                                icon: const Icon(Icons.delete,
+                                    color: Colors.red),
+                                onPressed: () {
+                                  confirmDelete(data['category_id']);
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            )
+          ],
         ),
       ),
     );

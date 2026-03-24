@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:user_app/theme.dart';
+import 'package:user_app/widgets/custom_app_bar.dart';
+import 'package:user_app/widgets/custom_button.dart';
+import 'package:user_app/widgets/custom_card.dart';
+import 'package:user_app/widgets/custom_text_field.dart';
 import 'main.dart';
 
 class ChangePassword extends StatefulWidget {
@@ -21,7 +26,7 @@ class _ChangePasswordState extends State<ChangePassword> {
   Future<void> updatePassword() async {
     if (oldPass.text.isEmpty || newPass.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("All fields are required")),
+        const SnackBar(content: Text("All fields are required"), backgroundColor: AppTheme.error),
       );
       return;
     }
@@ -37,7 +42,7 @@ class _ChangePasswordState extends State<ChangePassword> {
 
       if (user['user_password'] != oldPass.text) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Old password incorrect")),
+          const SnackBar(content: Text("Old password incorrect"), backgroundColor: AppTheme.error),
         );
         setState(() => isLoading = false);
         return;
@@ -48,7 +53,7 @@ class _ChangePasswordState extends State<ChangePassword> {
       }).eq('id', widget.userId);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password updated successfully")),
+        const SnackBar(content: Text("Password updated successfully"), backgroundColor: AppTheme.success),
       );
 
       Navigator.pop(context);
@@ -61,165 +66,90 @@ class _ChangePasswordState extends State<ChangePassword> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryBlue = Color(0xFF2E6CF6);
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
-      appBar: AppBar(
-        title: const Text("Change Password"),
-        backgroundColor: primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+      backgroundColor: AppTheme.background,
+      appBar: const CustomAppBar(title: "Change Password"),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            const SizedBox(height: 30),
+            const SizedBox(height: 32),
 
             // ===== Icon =====
             Container(
-              padding: const EdgeInsets.all(18),
-              decoration: const BoxDecoration(
-                color: Color(0xFFEAF0FF),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withOpacity(0.05),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.lock_outline,
-                size: 42,
-                color: primaryBlue,
+                Icons.lock_reset_outlined,
+                size: 56,
+                color: AppTheme.primary,
               ),
             ),
 
-            const SizedBox(height: 18),
+            const SizedBox(height: 24),
 
-            const Text(
+            Text(
               "Update your password",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
-            const SizedBox(height: 6),
-            const Text(
+            const SizedBox(height: 8),
+            Text(
               "Choose a strong password for better security",
-              style: TextStyle(
-                color: Colors.black54,
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 32),
 
             // ===== Form Card =====
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 18,
-                      color: Color(0x11000000),
-                      offset: Offset(0, 10),
-                    )
-                  ],
-                ),
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.padding),
+              child: CustomCard(
                 child: Column(
                   children: [
-                    _passwordField(
+                    CustomTextField(
                       controller: oldPass,
                       label: "Old Password",
-                      isVisible: showOld,
-                      toggle: () =>
-                          setState(() => showOld = !showOld),
+                      isPassword: !showOld,
+                      prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                      suffixIcon: IconButton(
+                        icon: Icon(showOld ? Icons.visibility_off : Icons.visibility, size: 20, color: AppTheme.textSecondary),
+                        onPressed: () => setState(() => showOld = !showOld),
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    _passwordField(
+                    const SizedBox(height: 8),
+                    CustomTextField(
                       controller: newPass,
                       label: "New Password",
-                      isVisible: showNew,
-                      toggle: () =>
-                          setState(() => showNew = !showNew),
+                      isPassword: !showNew,
+                      prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                      suffixIcon: IconButton(
+                        icon: Icon(showNew ? Icons.visibility_off : Icons.visibility, size: 20, color: AppTheme.textSecondary),
+                        onPressed: () => setState(() => showNew = !showNew),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
 
-            const SizedBox(height: 26),
+            const SizedBox(height: 32),
 
             // ===== Update Button =====
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: InkWell(
-                onTap: isLoading ? null : updatePassword,
-                borderRadius: BorderRadius.circular(18),
-                child: Container(
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: primaryBlue,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        blurRadius: 18,
-                        color: primaryBlue.withOpacity(0.35),
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: isLoading
-                        ? const CircularProgressIndicator(
-                            color: Colors.white,
-                          )
-                        : const Text(
-                            "Update Password",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                  ),
-                ),
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.padding),
+              child: CustomButton(
+                text: "Update Password",
+                isLoading: isLoading,
+                onPressed: updatePassword,
               ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 48),
           ],
         ),
       ),
     );
   }
-}
-
-// ===== Password Field =====
-Widget _passwordField({
-  required TextEditingController controller,
-  required String label,
-  required bool isVisible,
-  required VoidCallback toggle,
-}) {
-  return TextField(
-    controller: controller,
-    obscureText: !isVisible,
-    decoration: InputDecoration(
-      labelText: label,
-      prefixIcon: const Icon(Icons.lock_outline),
-      suffixIcon: IconButton(
-        icon: Icon(
-          isVisible ? Icons.visibility_off : Icons.visibility,
-        ),
-        onPressed: toggle,
-      ),
-      filled: true,
-      fillColor: const Color(0xFFF4F6FB),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
-      ),
-    ),
-  );
 }

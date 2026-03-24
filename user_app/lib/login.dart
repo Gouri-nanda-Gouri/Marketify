@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:user_app/main.dart';
 import 'package:user_app/mainbottom.dart';
+import 'package:user_app/signin.dart';
+import 'package:user_app/theme.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -30,6 +32,24 @@ class _LoginState extends State<Login> {
     );
 
     if (res.user != null && res.session != null) {
+      // Check if user is blocked in tbl_user
+      try {
+        final userData = await supabase
+            .from('tbl_user')
+            .select('user_status')
+            .eq('id', res.user!.id)
+            .single();
+
+        final int status = int.tryParse(userData['user_status'].toString()) ?? 1;
+        if (status == 0) {
+          await supabase.auth.signOut();
+          showError("Your account has been blocked by the administrator.");
+          return;
+        }
+      } catch (e) {
+        debugPrint("Error checking user status: $e");
+      }
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MainBottomNav()),
@@ -60,109 +80,79 @@ class _LoginState extends State<Login> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    const primaryBlue = Color(0xFF2E6CF6);
-
-    return Scaffold(
-      backgroundColor: primaryBlue,
-      body: SafeArea(
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: AppTheme.background,
+    body: SafeArea(
+      child: Center(
         child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // ===== Blue Header =====
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    SizedBox(height: 8),
-                    Text(
-                      "Welcome Back",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
-                      "Login to continue",
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+          padding: const EdgeInsets.all(AppTheme.padding),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 🔥 Title
+                Text(
+                  "Welcome Back",
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
-              ),
+                const SizedBox(height: 8),
+                Text(
+                  "Login to continue",
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
+                ),
 
-              const SizedBox(height: 12),
+                const SizedBox(height: 32),
 
-              // ===== White Card =====
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(18, 22, 18, 24),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(26),
-                    topRight: Radius.circular(26),
+                // 🔥 Card Container
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppTheme.card,
+                    borderRadius:
+                        BorderRadius.circular(AppTheme.borderRadiusLarge),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
-                ),
-                child: Form(
-                  key: _formKey,
                   child: Column(
                     children: [
-                      // Small icon box (premium look)
+                      // Icon
                       Container(
-                        height: 86,
-                        width: 86,
+                        height: 70,
+                        width: 70,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF2F5FF),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: const Color(0xFFE6ECFF)),
+                          color: AppTheme.primary.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Icon(
                           Icons.lock_outline,
-                          size: 40,
-                          color: primaryBlue,
+                          color: AppTheme.primary,
+                          size: 30,
                         ),
                       ),
 
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 24),
 
                       // Email
                       TextFormField(
                         controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           labelText: "Email",
-                          hintText: "Enter your email",
-                          prefixIcon: const Icon(Icons.email_outlined),
-                          filled: true,
-                          fillColor: const Color(0xFFF7F9FF),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide:
-                                const BorderSide(color: Color(0xFFE6ECFF)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide:
-                                const BorderSide(color: Color(0xFFE6ECFF)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(
-                                color: primaryBlue, width: 1.5),
-                          ),
+                          prefixIcon: Icon(Icons.email_outlined),
                         ),
                         validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? "Enter email" : null,
+                            (v == null || v.isEmpty) ? "Enter email" : null,
                       ),
 
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
 
                       // Password
                       TextFormField(
@@ -170,33 +160,13 @@ class _LoginState extends State<Login> {
                         obscureText: _hidePassword,
                         decoration: InputDecoration(
                           labelText: "Password",
-                          hintText: "Enter your password",
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
-                            onPressed: () =>
-                                setState(() => _hidePassword = !_hidePassword),
-                            icon: Icon(
-                              _hidePassword
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                            ),
-                          ),
-                          filled: true,
-                          fillColor: const Color(0xFFF7F9FF),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide:
-                                const BorderSide(color: Color(0xFFE6ECFF)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide:
-                                const BorderSide(color: Color(0xFFE6ECFF)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(
-                                color: primaryBlue, width: 1.5),
+                            onPressed: () => setState(
+                                () => _hidePassword = !_hidePassword),
+                            icon: Icon(_hidePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility),
                           ),
                         ),
                         validator: (v) => (v == null || v.length < 6)
@@ -204,74 +174,60 @@ class _LoginState extends State<Login> {
                             : null,
                       ),
 
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
 
-                      // Forgot password (optional)
+                      // Forgot password
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () {
-                            // later: forgot password page
-                          },
-                          child: const Text(
-                            "Forgot password?",
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
+                          onPressed: () {},
+                          child: const Text("Forgot password?"),
                         ),
                       ),
 
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 16),
 
                       // Login button
                       SizedBox(
                         width: double.infinity,
-                        height: 52,
                         child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryBlue,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
                           onPressed: () {
-  if (_formKey.currentState!.validate()) {
-    signIn(); // Call the Supabase logic
-  }
-},
-                          child: const Text(
-                            "Login",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
+                            if (_formKey.currentState!.validate()) {
+                              signIn();
+                            }
+                          },
+                          child: const Text("Login"),
                         ),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      // Bottom small text
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Text(
-                            "Secure login • Fast access",
-                            style: TextStyle(
-                              color: Colors.black45,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 24),
+
+                // Register
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("Don't have an account? "),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const Signin()),
+                        );
+                      },
+                      child: const Text("Register"),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

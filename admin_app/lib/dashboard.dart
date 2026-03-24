@@ -1,14 +1,17 @@
-import 'package:admin_app/condition.dart';
-import 'package:admin_app/district.dart';
-import 'package:admin_app/place.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:sidebarx/sidebarx.dart';
 import 'package:admin_app/category.dart';
+import 'package:admin_app/condition.dart';
+import 'package:flutter/material.dart';
+import 'package:admin_app/theme.dart';
+import 'package:admin_app/dashboard_content.dart';
+import 'package:admin_app/user_management.dart';
+import 'package:admin_app/listing_management.dart';
+import 'package:admin_app/complaint_management.dart';
+import 'package:admin_app/feedback_management.dart';
+import 'package:sidebarx/sidebarx.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
-  runApp(AdminDashboard());
-}
+// 👉 IMPORT YOUR LOGIN PAGE HERE
+// import 'package:admin_app/login.dart';
 
 class AdminDashboard extends StatelessWidget {
   AdminDashboard({Key? key}) : super(key: key);
@@ -18,60 +21,40 @@ class AdminDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Admin Dashboard',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primaryColor: primaryColor,
-        scaffoldBackgroundColor: scaffoldBackgroundColor,
-        canvasColor: canvasColor,
-        fontFamily: "Roboto",
-        textTheme: const TextTheme(
-          headlineSmall: TextStyle(
-            color: Colors.black,
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-      home: Builder(
-        builder: (context) {
-          final isSmallScreen = MediaQuery.of(context).size.width < 600;
-
-          return Scaffold(
-            key: _key,
-            appBar: isSmallScreen
-                ? AppBar(
-                    backgroundColor: Colors.white,
-                    elevation: 1,
-                    title: Text(
-                      _getTitleByIndex(_controller.selectedIndex),
-                      style: const TextStyle(color: Colors.black),
-                    ),
-                    iconTheme: const IconThemeData(color: Colors.black),
-                    leading: IconButton(
-                      onPressed: () {
-                        _key.currentState?.openDrawer();
-                      },
-                      icon: const Icon(Icons.menu),
-                    ),
-                  )
-                : null,
-            drawer: ExampleSidebarX(controller: _controller),
-            body: Row(
-              children: [
-                if (!isSmallScreen) ExampleSidebarX(controller: _controller),
-                Expanded(
-                  child: Center(
-                    child: _ScreensExample(
-                      controller: _controller,
-                    ),
-                  ),
+    return Scaffold(
+      key: _key,
+      backgroundColor: AppTheme.background,
+      appBar: MediaQuery.of(context).size.width < 600
+          ? AppBar(
+              backgroundColor: AppTheme.background,
+              elevation: 0,
+              title: Text(
+                _getTitleByIndex(_controller.selectedIndex),
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
+              ),
+              iconTheme: const IconThemeData(color: AppTheme.textPrimary),
+              leading: IconButton(
+                onPressed: () {
+                  _key.currentState?.openDrawer();
+                },
+                icon: const Icon(Icons.menu),
+              ),
+            )
+          : null,
+      drawer: ExampleSidebarX(controller: _controller),
+      body: Row(
+        children: [
+          if (MediaQuery.of(context).size.width >= 600)
+            ExampleSidebarX(controller: _controller),
+          Expanded(
+            child: _ScreensExample(
+              controller: _controller,
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -86,6 +69,60 @@ class ExampleSidebarX extends StatelessWidget {
 
   final SidebarXController _controller;
 
+  /// 🔥 LOGOUT FUNCTION
+  Future<void> logout(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Logout",
+                style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              const Text("Are you sure you want to logout?"),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text("Cancel")),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text("Logout"),
+                  ),
+                ],
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirm != true) return;
+
+    await Supabase.instance.client.auth.signOut();
+
+    /// 👉 CHANGE THIS BASED ON YOUR LOGIN PAGE
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/login',
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SidebarX(
@@ -93,102 +130,105 @@ class ExampleSidebarX extends StatelessWidget {
       theme: SidebarXTheme(
         margin: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: canvasColor,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
+          color: AppTheme.card,
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
+          boxShadow: [
             BoxShadow(
               blurRadius: 10,
-              color: Color(0x11000000),
-              offset: Offset(0, 4),
+              color: Colors.black.withOpacity(0.04),
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-        hoverColor: accentCanvasColor,
-        textStyle: TextStyle(
-          color: Colors.black.withOpacity(0.7),
-        ),
+        hoverColor: AppTheme.primary.withOpacity(0.05),
+        textStyle: TextStyle(color: AppTheme.textSecondary),
         selectedTextStyle: const TextStyle(
-          color: primaryColor,
+          color: AppTheme.primary,
           fontWeight: FontWeight.bold,
         ),
-        itemTextPadding: const EdgeInsets.only(left: 20),
-        selectedItemTextPadding: const EdgeInsets.only(left: 20),
+        itemTextPadding: const EdgeInsets.only(left: 16),
+        selectedItemTextPadding: const EdgeInsets.only(left: 16),
         itemDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
         ),
         selectedItemDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: accentCanvasColor,
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
+          color: AppTheme.primary.withOpacity(0.1),
         ),
         iconTheme: IconThemeData(
-          color: Colors.black.withOpacity(0.7),
+          color: AppTheme.textSecondary,
           size: 22,
         ),
         selectedIconTheme: const IconThemeData(
-          color: primaryColor,
+          color: AppTheme.primary,
           size: 22,
         ),
       ),
       extendedTheme: const SidebarXTheme(
         width: 230,
-        decoration: BoxDecoration(
-          color: canvasColor,
-        ),
+        decoration: BoxDecoration(color: AppTheme.card),
       ),
-      footerDivider: divider,
+
+      /// 🔥 LOGOUT BUTTON HERE
+      footerBuilder: (context, extended) {
+        return Padding(
+          padding: const EdgeInsets.all(12),
+          child: InkWell(
+            onTap: () => logout(context),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  vertical: 12, horizontal: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.red.withOpacity(0.1),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.logout, color: Colors.red),
+                  if (extended) ...[
+                    const SizedBox(width: 12),
+                    const Text(
+                      "Logout",
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ]
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+
+      footerDivider: const Divider(color: AppTheme.divider, height: 1),
+
       headerBuilder: (context, extended) {
         return SizedBox(
           height: 110,
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Image.asset('assets/p1.jpg'),
+            padding: const EdgeInsets.all(AppTheme.padding),
+            child: CircleAvatar(
+              radius: 40,
+              backgroundColor: AppTheme.primary.withOpacity(0.1),
+              child: const Icon(Icons.admin_panel_settings,
+                  size: 40, color: AppTheme.primary),
+            ),
           ),
         );
       },
+
       items: [
-        SidebarXItem(
-          icon: Icons.home_rounded,
-          label: 'Home',
-          onTap: () {
-            debugPrint('Home');
-          },
-        ),
-        const SidebarXItem(
-          icon: Icons.category_rounded,
-          label: 'Categories',
-        ),
-        const SidebarXItem(
-          icon: Icons.health_and_safety_rounded,
-          label: 'Conditions',
-        ),
-        SidebarXItem(
-          icon: Icons.location_on_outlined,
-          label: 'Districts',
-          
-        ),
-       SidebarXItem(
-          icon: Icons.location_city,
-          label: 'Places',
-         
-        ),
-        const SidebarXItem(
-          iconWidget: FlutterLogo(size: 22),
-          label: 'Flutter',
-        ),
-
+        SidebarXItem(icon: Icons.dashboard_rounded, label: 'Dashboard'),
+        SidebarXItem(icon: Icons.people_outline, label: 'User Management'),
+        SidebarXItem(icon: Icons.shopping_bag_outlined, label: 'Listings'),
+        SidebarXItem(icon: Icons.warning_amber_rounded, label: 'Complaints'),
+        SidebarXItem(icon: Icons.rate_review_outlined, label: 'Feedback'),
+        SidebarXItem(icon: Icons.category_rounded, label: 'Categories'),
+        SidebarXItem(icon: Icons.health_and_safety_rounded, label: 'Conditions'),
       ],
-    );
-  }
-
-  void _showDisabledAlert(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Item disabled for selecting',
-          style: TextStyle(color: Colors.white),
-        ),
-        backgroundColor: primaryColor,
-      ),
     );
   }
 }
@@ -208,66 +248,44 @@ class _ScreensExample extends StatelessWidget {
       builder: (context, child) {
         switch (controller.selectedIndex) {
           case 0:
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: 6,
-              itemBuilder: (_, __) => Container(
-                height: 110,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  color: Colors.white,
-                ),
-              ),
-            );
-
+            return const DashboardContent();
           case 1:
-            return Categories();
-
+            return const UserManagementScreen();
           case 2:
-            return Condition();
+            return const ListingManagementScreen();
           case 3:
-          return District();
+            return const ComplaintManagementScreen();
           case 4:
-          return Place();
-
+            return const FeedbackManagementScreen();
+          case 5:
+            return Categories();
+          case 6:
+            return Condition();
           default:
-            return const Center(
-              child: Text("Page Not Found"),
-            );
+            return const Center(child: Text("Page Not Found"));
         }
       },
     );
   }
 }
 
-
-
 String _getTitleByIndex(int index) {
   switch (index) {
     case 0:
-      return 'Home';
+      return 'Dashboard Overview';
     case 1:
-      return 'Categories';
+      return 'User Management';
     case 2:
-      return 'Conditions';
+      return 'Listing Management';
     case 3:
-      return 'District';
-      case 4:
-      return 'Places';
+      return 'Complaints';
+    case 4:
+      return 'Feedback Overview';
     case 5:
-      return 'Flutter';
+      return 'Categories';
+    case 6:
+      return 'Conditions';
     default:
-      return 'Page';
+      return 'Admin App';
   }
 }
-
-const primaryColor = Color(0xFF2E6CF6);
-const canvasColor = Colors.white;
-const scaffoldBackgroundColor = Color(0xFFF4F6FB);
-const accentCanvasColor = Color(0xFFE9EEFF);
-
-final divider = Divider(
-  color: Colors.grey.withOpacity(0.2),
-  height: 1,
-);
