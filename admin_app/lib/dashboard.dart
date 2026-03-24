@@ -10,6 +10,9 @@ import 'package:admin_app/feedback_management.dart';
 import 'package:sidebarx/sidebarx.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'district.dart';
+import 'place.dart';
+
 // 👉 IMPORT YOUR LOGIN PAGE HERE
 // import 'package:admin_app/login.dart';
 
@@ -228,6 +231,8 @@ class ExampleSidebarX extends StatelessWidget {
         SidebarXItem(icon: Icons.rate_review_outlined, label: 'Feedback'),
         SidebarXItem(icon: Icons.category_rounded, label: 'Categories'),
         SidebarXItem(icon: Icons.health_and_safety_rounded, label: 'Conditions'),
+        SidebarXItem(icon: Icons.map_outlined, label: 'Districts'),
+        SidebarXItem(icon: Icons.place_outlined, label: 'Places'),
       ],
     );
   }
@@ -261,6 +266,10 @@ class _ScreensExample extends StatelessWidget {
             return Categories();
           case 6:
             return Condition();
+          case 7:
+            return District();
+          case 8:
+            return Place();
           default:
             return const Center(child: Text("Page Not Found"));
         }
@@ -285,6 +294,10 @@ String _getTitleByIndex(int index) {
       return 'Categories';
     case 6:
       return 'Conditions';
+    case 7:
+      return 'Districts';
+    case 8:
+      return 'Places';
     default:
       return 'Admin App';
   }
