@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:admin_app/main.dart';
 
@@ -14,15 +16,54 @@ class _CategoriesState extends State<Categories> {
 
   List categoryData = [];
 
+  Uint8List? selectedImageBytes;
+
+  /// PICK IMAGE (WEB SAFE)
+  Future<void> pickImage() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true, // IMPORTANT
+    );
+
+    if (result != null) {
+      setState(() {
+        selectedImageBytes = result.files.single.bytes;
+      });
+    }
+  }
+
+  /// UPLOAD IMAGE
+  Future<String?> uploadImage(Uint8List imageBytes) async {
+    final fileName =
+        "cat_${DateTime.now().millisecondsSinceEpoch}.jpg";
+
+    await supabase.storage
+        .from('category_images')
+        .uploadBinary(fileName, imageBytes);
+
+    return supabase.storage
+        .from('category_images')
+        .getPublicUrl(fileName);
+  }
+
   /// INSERT
   Future<void> insertCategory() async {
     final name = categoryController.text.trim();
 
+    String? imageUrl;
+
+    if (selectedImageBytes != null) {
+      imageUrl = await uploadImage(selectedImageBytes!);
+    }
+
     await supabase.from('tbl_category').insert({
       'category_name': name,
+      'category_image': imageUrl,
     });
 
     categoryController.clear();
+    selectedImageBytes = null;
+
     fetchCategories();
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -40,17 +81,38 @@ class _CategoriesState extends State<Categories> {
   }
 
   /// UPDATE
-  Future<void> updateCategory(int id, String name) async {
-    await supabase
-        .from('tbl_category')
-        .update({'category_name': name})
-        .eq('category_id', id);
+  Future<void> updateCategory(
+      int id, String name, Uint8List? newImage) async {
+    try {
+      String? imageUrl;
 
-    fetchCategories();
+      if (newImage != null) {
+        imageUrl = await uploadImage(newImage);
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Category Updated")),
-    );
+      Map<String, dynamic> updateData = {
+        'category_name': name,
+      };
+
+      if (imageUrl != null) {
+        updateData['category_image'] = imageUrl;
+      }
+
+      await supabase
+          .from('tbl_category')
+          .update(updateData)
+          .eq('id', id); // FIXED
+
+      fetchCategories();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Category Updated")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Update failed")),
+      );
+    }
   }
 
   /// DELETE
@@ -58,122 +120,83 @@ class _CategoriesState extends State<Categories> {
     await supabase
         .from('tbl_category')
         .delete()
-        .eq('category_id', id);
+        .eq('id', id); // FIXED
 
     fetchCategories();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Category Deleted")),
-    );
   }
 
-  /// EDIT DIALOG (UPGRADED)
-  void showEditDialog(int id, String oldName) {
+  /// EDIT DIALOG
+  void showEditDialog(int id, String oldName, String? oldImage) {
     TextEditingController editController =
         TextEditingController(text: oldName);
 
+    Uint8List? editImageBytes;
+
     showDialog(
       context: context,
-      builder: (_) => Dialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Edit Category",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: editController,
-                decoration: InputDecoration(
-                  labelText: "Category Name",
-                  filled: true,
-                  fillColor: const Color(0xFFF5F7FF),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) {
+          Future<void> pickEditImage() async {
+            FilePickerResult? result =
+                await FilePicker.platform.pickFiles(
+              type: FileType.image,
+              withData: true,
+            );
+
+            if (result != null) {
+              setState(() {
+                editImageBytes = result.files.single.bytes;
+              });
+            }
+          }
+
+          return Dialog(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text("Cancel")),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2E6CF6),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                  const Text("Edit Category"),
+
+                  const SizedBox(height: 10),
+
+                  TextField(controller: editController),
+
+                  const SizedBox(height: 10),
+
+                  GestureDetector(
+                    onTap: pickEditImage,
+                    child: Container(
+                      height: 100,
+                      color: Colors.grey.shade200,
+                      child: editImageBytes != null
+                          ? Image.memory(editImageBytes!,
+                              fit: BoxFit.cover)
+                          : oldImage != null
+                              ? Image.network(oldImage,
+                                  fit: BoxFit.cover)
+                              : const Center(
+                                  child: Text("Select Image")),
                     ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  ElevatedButton(
                     onPressed: () {
-                      final updatedName = editController.text.trim();
-                      if (updatedName.isNotEmpty) {
-                        updateCategory(id, updatedName);
-                      }
+                      updateCategory(
+                          id,
+                          editController.text.trim(),
+                          editImageBytes);
                       Navigator.pop(context);
                     },
                     child: const Text("Update"),
-                  ),
+                  )
                 ],
-              )
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// DELETE CONFIRMATION (UPGRADED)
-  void confirmDelete(int id) {
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Delete Category",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 10),
-              const Text("Are you sure you want to delete this category?"),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text("Cancel")),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () {
-                      deleteCategory(id);
-                      Navigator.pop(context);
-                    },
-                    child: const Text("Delete"),
-                  ),
-                ],
-              )
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -185,182 +208,83 @@ class _CategoriesState extends State<Categories> {
   }
 
   @override
-  void dispose() {
-    categoryController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// HEADER
-            const Text(
-              "Category Management",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              "Manage product categories efficiently",
-              style: TextStyle(color: Colors.black54),
-            ),
+            /// FORM
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: categoryController,
+                    validator: (value) =>
+                        value!.isEmpty ? "Enter name" : null,
+                  ),
 
-            const SizedBox(height: 24),
+                  const SizedBox(height: 10),
 
-            /// ADD CATEGORY CARD
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  )
+                  GestureDetector(
+                    onTap: pickImage,
+                    child: Container(
+                      height: 100,
+                      color: Colors.grey.shade200,
+                      child: selectedImageBytes != null
+                          ? Image.memory(selectedImageBytes!,
+                              fit: BoxFit.cover)
+                          : const Center(
+                              child: Text("Select Image")),
+                    ),
+                  ),
+
+                  ElevatedButton(
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        insertCategory();
+                      }
+                    },
+                    child: const Text("Add"),
+                  ),
                 ],
               ),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "+ Add New Category",
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    TextFormField(
-                      controller: categoryController,
-                      validator: (value) =>
-                          value!.isEmpty ? "Enter category name" : null,
-                      decoration: InputDecoration(
-                        hintText: "Enter category name...",
-                        prefixIcon: const Icon(Icons.category),
-                        filled: true,
-                        fillColor: const Color(0xFFF9FAFF),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (_formKey.currentState!.validate()) {
-                            insertCategory();
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2E6CF6),
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: const Text(
-                          "Add Category",
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
 
-            const SizedBox(height: 24),
-
-            /// LIST HEADER
-            const Text(
-              "Categories List",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
 
             /// LIST
             Expanded(
-              child: categoryData.isEmpty
-                  ? const Center(
-                      child: Text(
-                        "📭 No categories yet\nAdd one above",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: categoryData.length,
-                      itemBuilder: (context, index) {
-                        final data = categoryData[index];
+              child: ListView.builder(
+                itemCount: categoryData.length,
+                itemBuilder: (context, index) {
+                  final data = categoryData[index];
 
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.03),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              )
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.folder,
-                                  color: Color(0xFF2E6CF6)),
-                              const SizedBox(width: 12),
+                  return ListTile(
+                    leading: data['category_image'] != null
+                        ? Image.network(
+                            data['category_image'],
+                            width: 40,
+                            height: 40,
+                          )
+                        : const Icon(Icons.folder),
 
-                              Expanded(
-                                child: Text(
-                                  data['category_name'],
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ),
+                    title: Text(data['category_name']),
 
-                              IconButton(
-                                icon: const Icon(Icons.edit,
-                                    color: Colors.blue),
-                                onPressed: () {
-                                  showEditDialog(
-                                    data['category_id'],
-                                    data['category_name'],
-                                  );
-                                },
-                              ),
-
-                              IconButton(
-                                icon: const Icon(Icons.delete,
-                                    color: Colors.red),
-                                onPressed: () {
-                                  confirmDelete(data['category_id']);
-                                },
-                              ),
-                            ],
-                          ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () {
+                        showEditDialog(
+                          data['id'], // FIXED
+                          data['category_name'],
+                          data['category_image'],
                         );
                       },
                     ),
+                  );
+                },
+              ),
             )
           ],
         ),

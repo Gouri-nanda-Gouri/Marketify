@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:user_app/changepassword.dart';
 import 'package:user_app/editprofile.dart';
+import 'package:user_app/login.dart';
 import 'package:user_app/main.dart';
 import 'package:user_app/my_favo.dart';
 import 'package:user_app/theme.dart';
@@ -42,6 +43,46 @@ class _MyProfileState extends State<MyProfile> {
       setState(() => isLoading = false);
     }
   }
+void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Logout"),
+        content: const Text("Are you sure you want to logout?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _logout();
+            },
+            child: const Text("Logout", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+  Future<void> _logout() async {
+    try {
+      await supabase.auth.signOut();
+      if (mounted) {
+        // Replace 'LoginScreen' with the actual name of your login widget
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const Login()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error logging out: $e")),
+      );
+    }
+  }
+  
 
   @override
   void initState() {
@@ -193,6 +234,13 @@ class _MyProfileState extends State<MyProfile> {
                       context,
                       MaterialPageRoute(builder: (_) => const FeedbackListScreen()),
                     ),
+                  ),
+                  CustomButton(
+                    icon: const Icon(Icons.logout_rounded, size: 20, color: Colors.white),
+                    text: "Logout",
+                    // If your CustomButton doesn't support a 'color' property, 
+                    // you might need to wrap it or adjust your CustomButton class
+                    onPressed: () => _showLogoutDialog(), 
                   ),
                 ],
               ),

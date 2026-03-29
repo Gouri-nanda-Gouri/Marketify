@@ -1,5 +1,6 @@
 import 'package:admin_app/category.dart';
 import 'package:admin_app/condition.dart';
+import 'package:admin_app/subcategory.dart';
 import 'package:flutter/material.dart';
 import 'package:admin_app/theme.dart';
 import 'package:admin_app/dashboard_content.dart';
@@ -233,6 +234,7 @@ class ExampleSidebarX extends StatelessWidget {
         SidebarXItem(icon: Icons.health_and_safety_rounded, label: 'Conditions'),
         SidebarXItem(icon: Icons.map_outlined, label: 'Districts'),
         SidebarXItem(icon: Icons.place_outlined, label: 'Places'),
+        SidebarXItem(icon: Icons.subdirectory_arrow_right, label: 'Subcategories'),
       ],
     );
   }
@@ -270,6 +272,8 @@ class _ScreensExample extends StatelessWidget {
             return District();
           case 8:
             return Place();
+          case 9:
+            return const SubCategories();
           default:
             return const Center(child: Text("Page Not Found"));
         }
@@ -298,6 +302,8 @@ String _getTitleByIndex(int index) {
       return 'Districts';
     case 8:
       return 'Places';
+    case 9:
+      return 'Subcategories';
     default:
       return 'Admin App';
   }

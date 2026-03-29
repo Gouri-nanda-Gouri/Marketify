@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:user_app/product_details.dart';
+import 'package:user_app/subcategory_page.dart';
 import 'package:user_app/theme.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -15,18 +16,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Map<String, dynamic>> categories = [];
   List<Map<String, dynamic>> products = [];
-  Set<int> likedProductIds = {}; // Stores IDs as integers
+  Set<int> likedProductIds = {};
 
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    loadHomeData();
+    loadData();
   }
 
-  /// Fetches all data required for the home screen
-  Future<void> loadHomeData() async {
+  Future<void> loadData() async {
     try {
       await Future.wait([
         fetchCategories(),
@@ -34,105 +34,95 @@ class _HomeScreenState extends State<HomeScreen> {
         fetchLikedProducts(),
       ]);
     } catch (e) {
-      debugPrint("Error loading home data: $e");
+      debugPrint("Load Error: $e");
     } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+      setState(() => isLoading = false);
     }
   }
 
+  /// 🔥 FETCH ALL PRODUCTS (NO FILTER ISSUE)
+  Future<void> fetchProducts() async {
+    try {
+      final response = await supabase
+          .from('tbl_product')
+          .select('*, tbl_place(place_name)')
+          .order('created_at', ascending: false);
+
+      print("🔥 PRODUCTS: $response");
+
+      products = List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint("Product Error: $e");
+    }
+  }
+
+  /// 🔥 FETCH CATEGORIES
   Future<void> fetchCategories() async {
     final response = await supabase.from('tbl_category').select();
     categories = List<Map<String, dynamic>>.from(response);
   }
 
-  Future<void> fetchProducts() async {
-    final response = await supabase
-        .from('tbl_product')
-        .select('*, tbl_place(place_name)')
-        .neq('product_status', 0) // Explicitly ignore blocked listings
-        .order('created_at', ascending: false);
-
-    products = List<Map<String, dynamic>>.from(response);
-  }
-
+  /// 🔥 FETCH LIKED
   Future<void> fetchLikedProducts() async {
-  final user = supabase.auth.currentUser;
-  if (user == null) return;
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
 
-  try {
-    final response = await supabase
-        .from('tbl_favourite')
-        .select('product_id')
-        .eq('user_id', user.id);
-
-    final Set<int> fetchedIds = (response as List).map<int>((e) {
-      // Make sure this matches the column name in tbl_favourite
-      final id = e['product_id']; 
-      if (id is int) return id;
-      return int.tryParse(id.toString()) ?? 0;
-    }).where((id) => id != 0).toSet();
-
-    setState(() {
-      likedProductIds = fetchedIds;
-    });
-  } catch (e) {
-    debugPrint("Error fetching liked products: $e");
-  }
-}
-
-Future<void> toggleLike(int productId) async {
-  // SAFETY CHECK: If productId is 0, the parsing failed or the key name is wrong.
-  if (productId == 0) {
-    debugPrint("Error: Attempted to like a product with ID 0. Check your key names.");
-    return;
-  }
-
-  final user = supabase.auth.currentUser;
-  if (user == null) return;
-
-  final wasLiked = likedProductIds.contains(productId);
-
-  setState(() {
-    if (wasLiked) {
-      likedProductIds.remove(productId);
-    } else {
-      likedProductIds.add(productId);
-    }
-  });
-
-  try {
-    if (wasLiked) {
-      await supabase
+    try {
+      final response = await supabase
           .from('tbl_favourite')
-          .delete()
-          .match({'user_id': user.id, 'product_id': productId});
-    } else {
-      await supabase.from('tbl_favourite').insert({
-        'user_id': user.id,
-        'product_id': productId,
-      });
+          .select('product_id')
+          .eq('user_id', user.id);
+
+      likedProductIds = (response as List)
+          .map<int>((e) =>
+              int.tryParse(e['product_id'].toString()) ?? 0)
+          .where((id) => id != 0)
+          .toSet();
+    } catch (e) {
+      debugPrint("Like Error: $e");
     }
-  } catch (e) {
-    // Revert on error
+  }
+
+  /// 🔥 TOGGLE LIKE
+  Future<void> toggleLike(int productId) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final isLiked = likedProductIds.contains(productId);
+
     setState(() {
-      if (wasLiked) {
-        likedProductIds.add(productId);
-      } else {
+      if (isLiked) {
         likedProductIds.remove(productId);
+      } else {
+        likedProductIds.add(productId);
       }
     });
-    debugPrint("Database Error: $e");
+
+    try {
+      if (isLiked) {
+        await supabase.from('tbl_favourite').delete().match({
+          'user_id': user.id,
+          'product_id': productId,
+        });
+      } else {
+        await supabase.from('tbl_favourite').insert({
+          'user_id': user.id,
+          'product_id': productId,
+        });
+      }
+    } catch (e) {
+      debugPrint("Toggle Error: $e");
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
       return Scaffold(
         backgroundColor: AppTheme.background,
-        body: Center(child: CircularProgressIndicator(color: AppTheme.primary)),
+        body: Center(
+          child: CircularProgressIndicator(color: AppTheme.primary),
+        ),
       );
     }
 
@@ -141,15 +131,16 @@ Future<void> toggleLike(int productId) async {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            /// HERO SECTION
+
+            /// 🔥 HEADER
             SliverToBoxAdapter(
               child: Container(
                 padding: const EdgeInsets.all(AppTheme.padding),
                 decoration: const BoxDecoration(
                   color: AppTheme.primary,
                   borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(AppTheme.borderRadiusLarge),
-                    bottomRight: Radius.circular(AppTheme.borderRadiusLarge),
+                    bottomLeft: Radius.circular(30),
+                    bottomRight: Radius.circular(30),
                   ),
                 ),
                 child: Column(
@@ -182,52 +173,56 @@ Future<void> toggleLike(int productId) async {
               ),
             ),
 
-            /// BANNER
+            /// 🔥 CATEGORY GRID
             SliverToBoxAdapter(
-              child: Container(
-                margin: const EdgeInsets.all(AppTheme.padding),
-                height: 120,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppTheme.borderRadius),
-                  color: AppTheme.accent.withOpacity(0.8),
-                ),
-                child: const Center(
-                  child: Text("Post Ads & Sell Faster 🚀",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                ),
-              ),
-            ),
-
-            /// CATEGORIES
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 100,
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.padding),
-                  scrollDirection: Axis.horizontal,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   itemCount: categories.length,
-                  itemBuilder: (context, i) {
-                    final c = categories[i];
-                    return Container(
-                      width: 90,
-                      margin: const EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.card,
-                        borderRadius: BorderRadius.circular(AppTheme.borderRadius),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.8,
+                  ),
+                  itemBuilder: (context, index) {
+                    final c = categories[index];
+
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SubCategoryPage(
+                              categoryId: c['id'],
+                              categoryName: c['category_name'],
+                            ),
+                          ),
+                        );
+                      },
+                      child: Column(
+                        children: [
+                          CircleAvatar(
+                            radius: 28,
+                            backgroundImage: c['category_image'] != null
+                                ? NetworkImage(c['category_image'])
+                                : null,
+                            child: c['category_image'] == null
+                                ? const Icon(Icons.category)
+                                : null,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            c['category_name'] ?? '',
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          c['category_name'] ?? '',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
                       ),
                     );
                   },
@@ -235,68 +230,63 @@ Future<void> toggleLike(int productId) async {
               ),
             ),
 
-            /// SECTION TITLE
+            /// 🔥 TITLE
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.all(AppTheme.padding),
-                child: Text("Fresh Recommendations",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  "All Products",
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold),
+                ),
               ),
             ),
 
-            /// PRODUCT GRID
+            /// 🔥 PRODUCTS GRID
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: AppTheme.padding, vertical: 8),
-              sliver: SliverGrid.builder(
-                itemCount: products.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 0.72,
-                ),
-                itemBuilder: (context, i) {
-                  final product = products[i];
-                  // Ensure ID is treated as int
-                  final int productId = int.tryParse(product['id'].toString()) ?? 0;
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: products.isEmpty
+                  ? const SliverToBoxAdapter(
+                      child: Center(child: Text("No products available")),
+                    )
+                  : SliverGrid(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) {
+                          final p = products[i];
+                          final int productId =
+                              int.tryParse(p['id'].toString()) ?? 0;
 
-                  return ProductCard(
-                    title: product['product_name'] ?? '',
-                    price: "₹${product['product_price'] ?? 0}",
-                    location: product['tbl_place']?['place_name'] ?? 'Unknown',
-                    imageUrl: product['image_url'] ?? '',
-                    isLiked: likedProductIds.contains(productId),
-                    onLikeTap: () => toggleLike(productId),
-                    onTap: () {
-  final currentUser = supabase.auth.currentUser;
-
-  if (currentUser == null) return;
-
-  final productOwnerId = product['user_id'];
-
-  /// BLOCK: user trying to buy their own product
-  if (productOwnerId == currentUser.id) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("You cannot buy your own product"),
-        backgroundColor: Colors.red,
-      ),
-    );
-    return;
-  }
-
-  /// ALLOW navigation if not owner
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => ProductDetailsPage(product: product),
-    ),
-  );
-},
-
-                  );
-                },
-              ),
+                          return ProductCard(
+                            title: p['product_name'] ?? '',
+                            price: "₹${p['product_price'] ?? 0}",
+                            location:
+                                p['tbl_place']?['place_name'] ?? '',
+                            imageUrl: p['image_url'] ?? '',
+                            isLiked:
+                                likedProductIds.contains(productId),
+                            onLikeTap: () => toggleLike(productId),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ProductDetailsPage(product: p),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                        childCount: products.length,
+                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 0.72,
+                      ),
+                    ),
             ),
           ],
         ),
@@ -305,6 +295,7 @@ Future<void> toggleLike(int productId) async {
   }
 }
 
+/// 🔥 PRODUCT CARD
 class ProductCard extends StatelessWidget {
   final String title;
   final String price;
@@ -332,40 +323,42 @@ class ProductCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: AppTheme.card,
-          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
-              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
+            /// IMAGE
             Expanded(
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(AppTheme.borderRadius)),
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16)),
                     child: imageUrl.isNotEmpty
                         ? Image.network(
                             imageUrl,
-                            fit: BoxFit.cover,
                             width: double.infinity,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(color: Colors.grey.shade200, child: const Icon(Icons.broken_image)),
+                            fit: BoxFit.cover,
                           )
                         : Container(color: Colors.grey.shade300),
                   ),
                   Positioned(
-                    right: 4,
-                    top: 4,
+                    right: 5,
+                    top: 5,
                     child: IconButton(
                       icon: Icon(
-                        isLiked ? Icons.favorite : Icons.favorite_border,
-                        color: isLiked ? Colors.red : Colors.grey.shade700,
+                        isLiked
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        color: isLiked ? Colors.red : Colors.grey,
                       ),
                       onPressed: onLikeTap,
                     ),
@@ -373,31 +366,25 @@ class ProductCard extends StatelessWidget {
                 ],
               ),
             ),
+
+            /// DETAILS
             Padding(
               padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(price,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 2),
-                  Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on_outlined, size: 12, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(location,
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                      ),
-                    ],
-                  ),
+                      style:
+                          const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  Text(location,
+                      style: const TextStyle(
+                          fontSize: 11, color: Colors.grey)),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),

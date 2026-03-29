@@ -9,22 +9,23 @@ import 'package:user_app/theme.dart'; // Implemented new theme
 
 Future<void> main() async {
   await Supabase.initialize(
-    url: 'https://wrfaepzyswceofnkmlik.supabase.co',
-    anonKey: 'sb_publishable_wX8bBde5lL1iSS3Tp9zpEg_T5J6xdCR',
+       url: 'https://jhaqkfxtixmoxhvipult.supabase.co',
+    anonKey: 'sb_publishable_CFHSwkELXkpWb7mKQSiVlg_h5ZsSyU0'
   );
   runApp(MainApp());
 }
  final supabase = Supabase.instance.client;
-
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final session = supabase.auth.currentSession;
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.theme, // Applied custom theme
-      home: Login(),
+      theme: AppTheme.theme,
+      home: session != null ? HomeScreen() : Login(),
     );
   }
 }

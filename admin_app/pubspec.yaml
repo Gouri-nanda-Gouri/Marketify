@@ -7,10 +7,12 @@ environment:
   sdk: ^3.8.1
 
 dependencies:
+  file_picker: ^10.3.10
   fl_chart: ^1.2.0
   flutter:
     sdk: flutter
   flutter_admin_scaffold: ^1.4.0
+  image_picker: ^1.2.1
   intl: ^0.20.2
   sidebarx: ^0.17.2
   supabase_flutter: ^2.12.0
